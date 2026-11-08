@@ -58,7 +58,8 @@ button.small{padding:4px 10px;font-size:.82rem}
 .card .title a:hover{text-decoration:underline}
 .card .co{color:var(--muted);font-size:.9rem}
 .card .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.tag{font-family:var(--mono);font-size:.74rem;padding:2px 7px;border-radius:4px;background:var(--soft);color:var(--fg)}
+.tag{font-family:var(--mono);font-size:.74rem;padding:2px 7px;border-radius:4px;background:var(--soft);color:var(--fg);white-space:nowrap}
+.tag.gap{display:inline-flex;gap:6px;align-items:baseline}.tag.gap b{font-weight:500;color:var(--muted)}
 .tag.src{background:transparent;border:1px solid var(--line);color:var(--muted)}
 .nums{display:grid;gap:8px;text-align:right;min-width:120px}
 .pay{font-family:var(--mono);font-size:1.05rem;font-weight:500;font-variant-numeric:tabular-nums}
@@ -230,7 +231,8 @@ $('imp').onclick=()=>{
 const SKILLS=('javascript,typescript,html,css,react,vue,angular,svelte,next.js,node.js,node,express,python,django,flask,fastapi,java,spring,kotlin,swift,c#,.net,c++,go,rust,ruby,rails,php,laravel,wordpress,shopify,webflow,sql,mysql,postgresql,postgres,mongodb,redis,graphql,rest api,aws,azure,gcp,google cloud,docker,kubernetes,terraform,linux,bash,git,github,ci/cd,jenkins,figma,photoshop,illustrator,adobe,ui/ux,ux,seo,google analytics,google ads,facebook ads,hubspot,salesforce,crm,excel,power bi,tableau,data analysis,machine learning,llm,openai,tensorflow,pytorch,pandas,jira,agile,scrum,project management,customer service,sales,cold calling,copywriting,content writing,social media,email marketing,quickbooks,bookkeeping,accounting,payroll,recruiting,zendesk,intercom,wix,squarespace,tailwind,bootstrap,sass,jquery,unity,unreal,firebase,supabase,stripe,twilio,zapier,notion,slack,microsoft office,powerpoint,outlook,ase,automotive,diagnostics,brake,oil change,alignment,tire,forklift,cdl,osha,hvac,electrical,plumbing,welding,cnc,autocad,solidworks,bilingual,spanish,phone support,data entry,typing,cash handling,pos,inventory,scheduling,dispatch').split(',');
 function skillsIn(text){const t=' '+(text||'').toLowerCase().replace(/[^a-z0-9+#./ ]/g,' ')+' ';return SKILLS.filter(s=>t.includes(' '+s+' ')||t.includes(' '+s+',')||t.includes(' '+s+'.')||t.includes('/'+s+' ')||t.includes(' '+s+'/'))}
 function mySkillSet(){return new Set([...pastJobs.flatMap(j=>j.skills),...splitList($('extra').value)].map(s=>s.toLowerCase()))}
-function gapsFor(job,mine){const have=[...mine].join(' ');return skillsIn(job.title+' '+job.description).filter(s=>!mine.has(s)&&!have.includes(s))}
+const ALIAS={postgres:'postgresql',node:'node.js',gcp:'google cloud',ux:'ui/ux'};
+function gapsFor(job,mine){const have=[...mine].join(' ');const out=new Set();skillsIn(job.title+' '+job.description).forEach(s=>{const k=ALIAS[s]||s;if(!mine.has(s)&&!mine.has(k)&&!have.includes(k))out.add(k)});return [...out]}
 
 // ---------- scoring ----------
 const STOP=new Set('the and for with you our are will this that from have your can all any able work team job role job jobs who what when where which their they them been being into than then also more most some such over under per via not but our out use used using about'.split(' '));
@@ -403,7 +405,7 @@ function renderResults(){
   const counts={};rows.forEach(r=>r.gaps.forEach(g=>counts[g]=(counts[g]||0)+1));
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
   $('gaps').hidden=!top.length;const gt=$('gap-tags');gt.innerHTML='';
-  top.forEach(([g,n])=>{const sp=document.createElement('span');sp.className='tag';sp.textContent=g+' · '+n+(n===1?' posting':' postings');gt.appendChild(sp)});
+  top.forEach(([g,n])=>{const sp=document.createElement('span');sp.className='tag gap';const a=document.createElement('span');a.textContent=g;const b=document.createElement('b');b.textContent='×'+n;sp.append(a,b);gt.appendChild(sp)});
   $('count').textContent=rows.length?rows.length+' listings':'';
   if(!rows.length){el.innerHTML='<p class="empty">'+(results.length?(view==='new'?'Nothing new since your last search.':view==='saved'?'Nothing saved yet. Tap Save on a listing.':view==='applied'?'Nothing marked applied yet.':'Nothing passes the current filters.'):'Add a past job or two, type what you’re looking for, and search.')+'</p>';return}
   rows.forEach((r,i)=>{
