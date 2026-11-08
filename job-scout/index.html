@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com https://remoteok.com https://himalayas.app; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Job Scout</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -116,6 +116,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <input id="extra" placeholder="HTML, CSS, JavaScript, React, Python"></div>
       <div class="row" style="margin-top:12px">
         <button class="primary" id="search">Search live listings</button>
+        <button id="indeed">Open on Indeed</button>
         <button id="paste-toggle">Paste a listing</button>
       </div>
       <div id="paste-box" hidden style="margin-top:10px">
@@ -127,7 +128,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <div class="field" style="margin-top:8px"><label for="p-desc">Description (paste the whole posting, pay gets read out of it)</label><textarea id="p-desc"></textarea></div>
         <div class="row" style="margin-top:8px"><button class="primary" id="p-add">Add and score</button></div>
       </div>
-      <p class="note" style="margin-top:12px">Sources: Remotive, Jobicy, The Muse and Arbeitnow (public job feeds, mostly remote office and tech work). Try job-title keywords like "web developer" or "customer support". Local shop, trade and hands-on jobs usually aren't on these feeds, so paste those in from Indeed and they'll be scored the same way.</p>
+      <p class="note" style="margin-top:12px">Sources: Remotive, Jobicy, RemoteOK, Himalayas, The Muse and Arbeitnow (public feeds, mostly remote office and tech work). Try job-title keywords like "web developer" or "customer support". Indeed doesn't allow pages to pull its listings, so "Open on Indeed" runs your search there; paste the good ones back here to score them.</p>
     </section>
   </div>
 
@@ -255,8 +256,14 @@ const sources={
     const ql=tokens(q);return out.filter(j=>!ql.length||ql.some(w=>(j.name+' '+(j.categories||[]).map(c=>c.name).join(' ')).toLowerCase().includes(w)))
       .map(j=>({id:'mu'+j.id,title:j.name,company:j.company&&j.company.name,location:(j.locations||[]).map(l=>l.name).join('; '),url:j.refs&&j.refs.landing_page,description:strip(j.contents),pay:parsePay(j.contents),date:j.publication_date,source:'The Muse'}))},
   async jobicy(q){const d=await fetchJSON('https://jobicy.com/api/v2/remote-jobs?count=50&tag='+encodeURIComponent(q));
-    return (d.jobs||[]).map(j=>({id:'jc'+j.id,title:j.jobTitle,company:j.companyName,location:'Remote · '+(j.jobGeo||'Anywhere'),url:j.url,description:strip(j.jobDescription||j.jobExcerpt),pay:(j.annualSalaryMin&&j.annualSalaryMax&&j.salaryCurrency==='USD')?(+j.annualSalaryMin+ +j.annualSalaryMax)/2:parsePay(j.jobDescription),date:j.pubDate,source:'Jobicy'}))}
+    return (d.jobs||[]).map(j=>({id:'jc'+j.id,title:j.jobTitle,company:j.companyName,location:'Remote · '+(j.jobGeo||'Anywhere'),url:j.url,description:strip(j.jobDescription||j.jobExcerpt),pay:(j.annualSalaryMin&&j.annualSalaryMax&&j.salaryCurrency==='USD')?(+j.annualSalaryMin+ +j.annualSalaryMax)/2:parsePay(j.jobDescription),date:j.pubDate,source:'Jobicy'}))},
+  async remoteok(q){const d=await fetchJSON('https://remoteok.com/api');
+    return (Array.isArray(d)?d:[]).filter(j=>j&&j.position).map(j=>({id:'ro'+j.id,title:j.position,company:j.company,location:'Remote · '+(j.location||'Anywhere'),url:j.url,description:strip(j.description)+' '+(j.tags||[]).join(' '),pay:(j.salary_min&&j.salary_max)?(+j.salary_min+ +j.salary_max)/2:parsePay(j.description),date:j.date,source:'RemoteOK'}))},
+  async himalayas(q){const d=await fetchJSON('https://himalayas.app/jobs/api?limit=100');
+    return (d.jobs||[]).map((j,i)=>({id:'hi'+(j.applicationLink||j.title+i),title:j.title,company:j.companyName,location:'Remote · '+((j.locationRestrictions||[]).join(', ')||'Anywhere'),url:j.applicationLink,description:strip(j.description),pay:(j.minSalary&&j.maxSalary)?(+j.minSalary+ +j.maxSalary)/2:parsePay(j.description),date:j.pubDate?new Date(j.pubDate*1000).toISOString():'',source:'Himalayas'}))}
 };
+function indeedLink(){const q=$('q').value.trim(),l=$('loc').value.trim();return 'https://www.indeed.com/jobs?q='+encodeURIComponent(q)+(l?'&l='+encodeURIComponent(l):'')}
+$('indeed').onclick=()=>{window.open(indeedLink(),'_blank','noopener')};
 // A listing counts only if it mentions the search terms, and only if it is in the chosen region.
 function relevant(j,q){
   const words=tokens(q);if(!words.length)return true;
