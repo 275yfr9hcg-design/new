@@ -102,6 +102,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <textarea id="pj-skills" placeholder="oil changes, brake inspection, customer service, ASE entry-level, POS system"></textarea></div>
       <div class="row" style="margin-top:8px"><button class="primary" id="pj-add">Add job</button></div>
       <div class="jobs-list" id="pj-list"></div>
+      <details style="margin-top:12px"><summary>Move your profile to another device</summary>
+        <p class="note" style="margin:8px 0">Your jobs, skills and tracker live only in this browser. Copy this code and paste it into Job Scout on another phone to carry them over.</p>
+        <div class="row"><button class="small" id="exp">Copy profile code</button><button class="small" id="imp">Paste profile code</button></div>
+        <textarea id="code" style="margin-top:8px;font-family:var(--mono);font-size:.75rem" placeholder="Profile code appears here, or paste one in and tap Paste profile code"></textarea>
+      </details>
     </section>
 
     <section class="panel">
@@ -149,11 +154,22 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
           <option value="combo">Pay × likelihood</option>
           <option value="date">Newest</option>
         </select>
+        <select id="view" style="width:auto">
+          <option value="all">All</option>
+          <option value="new">New since last search</option>
+          <option value="saved">Saved</option>
+          <option value="applied">Applied</option>
+        </select>
         <button class="small" id="hide-nopay">Hide no-pay listings</button>
         <button class="small" id="clear">Clear results</button>
       </div>
     </div>
     <p id="banner" hidden style="margin:10px 0;padding:10px 12px;border:1px solid var(--bad);border-radius:6px;color:var(--bad);font-size:.9rem"></p>
+    <div id="gaps" hidden class="panel" style="margin:10px 0;padding:12px 14px">
+      <h2 style="margin-bottom:6px">Skills that would boost you most</h2>
+      <p class="note">Skills these listings ask for that aren't in your profile, ranked by how many postings want them. Learn one, add it above, and watch the scores move.</p>
+      <div class="tags" id="gap-tags" style="margin-top:8px"></div>
+    </div>
     <div class="ledger" id="ledger"><p class="empty">Add a past job or two, type what you're looking for, and search.</p></div>
   </section>
 </div>
@@ -166,6 +182,10 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v)
 let pastJobs=(store.get('js.past',[])||[]).filter(j=>j&&typeof j.title==='string').map(j=>({title:j.title.slice(0,120),years:Number(j.years)||0,skills:Array.isArray(j.skills)?j.skills.map(String).slice(0,60):[]}));
 let results=(store.get('js.results',[])||[]).filter(j=>j&&typeof j.id==='string').map(j=>clean({...j,description:String(j.description||'').slice(0,20000)}));
 let hideNoPay=false;
+let tracker=store.get('js.tracker',{});   // id -> {saved:bool, applied:'YYYY-MM-DD'|null}
+if(!tracker||typeof tracker!=='object')tracker={};
+let seenIds=new Set((store.get('js.seen',[])||[]).filter(x=>typeof x==='string'));
+let fresh=new Set();
 ['q','loc','minpay','extra','region'].forEach(id=>{$(id).value=store.get('js.'+id,'');$(id).addEventListener('input',()=>store.set('js.'+id,$(id).value))});
 
 // ---------- past jobs ----------
@@ -189,6 +209,28 @@ $('pj-add').onclick=()=>{
   renderPast();renderResults();
 };
 function splitList(s){return s.split(/[,\n;]+/).map(x=>x.trim().toLowerCase()).filter(Boolean)}
+
+// ---------- profile code ----------
+$('exp').onclick=async()=>{
+  const code=btoa(unescape(encodeURIComponent(JSON.stringify({v:1,past:pastJobs,extra:$('extra').value,tracker}))));
+  $('code').value=code;
+  try{await navigator.clipboard.writeText(code);$('exp').textContent='Copied';setTimeout(()=>$('exp').textContent='Copy profile code',1500)}catch(e){$('code').select()}
+};
+$('imp').onclick=()=>{
+  try{const d=JSON.parse(decodeURIComponent(escape(atob($('code').value.trim()))));
+    if(!d||d.v!==1||!Array.isArray(d.past))throw 0;
+    pastJobs=d.past.filter(j=>j&&typeof j.title==='string').map(j=>({title:String(j.title).slice(0,120),years:Number(j.years)||0,skills:Array.isArray(j.skills)?j.skills.map(String).slice(0,60):[]}));
+    if(typeof d.extra==='string'){$('extra').value=d.extra.slice(0,500);store.set('js.extra',$('extra').value)}
+    if(d.tracker&&typeof d.tracker==='object'){tracker=d.tracker;store.set('js.tracker',tracker)}
+    store.set('js.past',pastJobs);renderPast();renderResults();$('imp').textContent='Imported';setTimeout(()=>$('imp').textContent='Paste profile code',1500)}
+  catch(e){$('imp').textContent='That code is not valid';setTimeout(()=>$('imp').textContent='Paste profile code',2000)}
+};
+
+// ---------- skill vocabulary (for gap detection) ----------
+const SKILLS=('javascript,typescript,html,css,react,vue,angular,svelte,next.js,node.js,node,express,python,django,flask,fastapi,java,spring,kotlin,swift,c#,.net,c++,go,rust,ruby,rails,php,laravel,wordpress,shopify,webflow,sql,mysql,postgresql,postgres,mongodb,redis,graphql,rest api,aws,azure,gcp,google cloud,docker,kubernetes,terraform,linux,bash,git,github,ci/cd,jenkins,figma,photoshop,illustrator,adobe,ui/ux,ux,seo,google analytics,google ads,facebook ads,hubspot,salesforce,crm,excel,power bi,tableau,data analysis,machine learning,llm,openai,tensorflow,pytorch,pandas,jira,agile,scrum,project management,customer service,sales,cold calling,copywriting,content writing,social media,email marketing,quickbooks,bookkeeping,accounting,payroll,recruiting,zendesk,intercom,wix,squarespace,tailwind,bootstrap,sass,jquery,unity,unreal,firebase,supabase,stripe,twilio,zapier,notion,slack,microsoft office,powerpoint,outlook,ase,automotive,diagnostics,brake,oil change,alignment,tire,forklift,cdl,osha,hvac,electrical,plumbing,welding,cnc,autocad,solidworks,bilingual,spanish,phone support,data entry,typing,cash handling,pos,inventory,scheduling,dispatch').split(',');
+function skillsIn(text){const t=' '+(text||'').toLowerCase().replace(/[^a-z0-9+#./ ]/g,' ')+' ';return SKILLS.filter(s=>t.includes(' '+s+' ')||t.includes(' '+s+',')||t.includes(' '+s+'.')||t.includes('/'+s+' ')||t.includes(' '+s+'/'))}
+function mySkillSet(){return new Set([...pastJobs.flatMap(j=>j.skills),...splitList($('extra').value)].map(s=>s.toLowerCase()))}
+function gapsFor(job,mine){const have=[...mine].join(' ');return skillsIn(job.title+' '+job.description).filter(s=>!mine.has(s)&&!have.includes(s))}
 
 // ---------- scoring ----------
 const STOP=new Set('the and for with you our are will this that from have your can all any able work team job role job jobs who what when where which their they them been being into than then also more most some such over under per via not but our out use used using about'.split(' '));
@@ -309,9 +351,12 @@ $('search').onclick=async()=>{
   $('search').disabled=false;
   const seen=new Set(results.map(r=>r.id));
   const kept=got.map(clean).filter(j=>relevant(j,q)&&inRegion(j));
-  kept.forEach(j=>{if(!seen.has(j.id)){seen.add(j.id);results.push(j)}});
+  fresh=new Set();
+  kept.forEach(j=>{if(!seenIds.has(j.id))fresh.add(j.id);if(!seen.has(j.id)){seen.add(j.id);results.push(j)}});
+  kept.forEach(j=>seenIds.add(j.id));store.set('js.seen',[...seenIds].slice(-5000));
+  if(fresh.size&&results.length>kept.length)$('view').value='new';
   store.set('js.results',results);
-  setStatus(`${got.length} fetched, ${kept.length} match${errs.length?' · failed: '+errs.join(', '):''}`);
+  setStatus(`${got.length} fetched, ${kept.length} match, ${fresh.size} new${errs.length?' · failed: '+errs.join(', '):''}`);
   const b=$('banner');
   if(errs.length===Object.keys(sources).length){b.hidden=false;b.textContent=location.protocol==='file:'
     ?'The job feeds could not be reached. This file is opened directly from your device, and phone browsers block local files from calling other websites. Put it on a web host (any https link) and search will work, or use "Paste a listing" to score jobs you copy from Indeed.'
@@ -331,16 +376,22 @@ $('p-add').onclick=()=>{
 };
 
 // ---------- results ----------
-$('sort').onchange=renderResults;
+$('sort').onchange=renderResults;$('view').onchange=renderResults;
 $('minpay').addEventListener('input',renderResults);$('loc').addEventListener('input',renderResults);$('extra').addEventListener('input',renderResults);
 $('hide-nopay').onclick=e=>{hideNoPay=!hideNoPay;e.target.textContent=hideNoPay?'Show no-pay listings':'Hide no-pay listings';renderResults()};
-$('clear').onclick=()=>{results=[];store.set('js.results',results);renderResults()};
+// Clear keeps anything you saved or applied to.
+$('clear').onclick=()=>{results=results.filter(j=>tracker[j.id]&&(tracker[j.id].saved||tracker[j.id].applied));fresh=new Set();store.set('js.results',results);renderResults()};
 const fmt=n=>'$'+Math.round(n/1000)+'k';
+const hourly=n=>'$'+Math.round(n/2080)+'/hr';
+function setTrack(id,patch){tracker[id]={...(tracker[id]||{saved:false,applied:null}),...patch};store.set('js.tracker',tracker)}
 function renderResults(){
   const el=$('ledger');el.innerHTML='';
-  const minpay=parseFloat($('minpay').value)||0;
-  let rows=results.map(j=>({j,s:score(j)}));
-  rows=rows.filter(r=>!(hideNoPay&&!r.j.pay)).filter(r=>!minpay||!r.j.pay||r.j.pay>=minpay);
+  const minpay=parseFloat($('minpay').value)||0, view=$('view').value, mine=mySkillSet();
+  let rows=results.map(j=>({j,s:score(j),t:tracker[j.id]||{},gaps:gapsFor(j,mine)}));
+  rows=rows.filter(r=>!(hideNoPay&&!r.j.pay));
+  if(view==='new')rows=rows.filter(r=>fresh.has(r.j.id));
+  if(view==='saved')rows=rows.filter(r=>r.t.saved);
+  if(view==='applied')rows=rows.filter(r=>r.t.applied);
   const sort=$('sort').value;
   rows.sort((a,b)=>{
     if(sort==='pay')return (b.j.pay||0)-(a.j.pay||0)||b.s.pct-a.s.pct;
@@ -348,27 +399,39 @@ function renderResults(){
     if(sort==='date')return new Date(b.j.date)-new Date(a.j.date);
     return b.s.pct-a.s.pct||(b.j.pay||0)-(a.j.pay||0);
   });
+  // Skill gaps across what's on screen
+  const counts={};rows.forEach(r=>r.gaps.forEach(g=>counts[g]=(counts[g]||0)+1));
+  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  $('gaps').hidden=!top.length;const gt=$('gap-tags');gt.innerHTML='';
+  top.forEach(([g,n])=>{const sp=document.createElement('span');sp.className='tag';sp.textContent=g+' · '+n+(n===1?' posting':' postings');gt.appendChild(sp)});
   $('count').textContent=rows.length?rows.length+' listings':'';
-  if(!rows.length){el.innerHTML='<p class="empty">'+(results.length?'Nothing passes the current filters.':'Add a past job or two, type what you’re looking for, and search.')+'</p>';return}
+  if(!rows.length){el.innerHTML='<p class="empty">'+(results.length?(view==='new'?'Nothing new since your last search.':view==='saved'?'Nothing saved yet. Tap Save on a listing.':view==='applied'?'Nothing marked applied yet.':'Nothing passes the current filters.'):'Add a past job or two, type what you’re looking for, and search.')+'</p>';return}
   rows.forEach((r,i)=>{
-    const j=r.j,s=r.s,band=s.pct>=60?'hi':s.pct>=35?'mid':'lo';
+    const j=r.j,s=r.s,t=r.t,band=s.pct>=60?'hi':s.pct>=35?'mid':'lo';
+    const low=minpay&&j.pay&&j.pay<minpay;
     const c=document.createElement('article');c.className='card'+(i<3&&sort!=='date'?' top':'');
     c.innerHTML=`<div>
       <div class="title">${j.url?'<a target="_blank" rel="noopener noreferrer"></a>':'<span></span>'}</div>
       <div class="co"></div>
-      <div class="tags"><span class="tag src"></span><span class="tag loc"></span></div>
+      <div class="tags"><span class="tag src"></span><span class="tag loc"></span>${fresh.has(j.id)?'<span class="tag" style="background:var(--accent);color:var(--accent-fg)">NEW</span>':''}${t.applied?'<span class="tag applied-tag" style="border:1px solid var(--good);background:transparent;color:var(--good)"></span>':''}</div>
       <div class="why"></div>
+      <div class="why gap"></div>
       <details><summary>Posting text</summary><div class="desc"></div></details>
+      <div class="row" style="margin-top:10px;gap:6px"><button class="small b-save" style="flex:0 0 auto"></button><button class="small b-app" style="flex:0 0 auto"></button></div>
     </div>
     <div class="nums">
-      <div class="pay ${j.pay?'':'none'}">${j.pay?fmt(j.pay)+'/yr':'pay not listed'}</div>
+      <div class="pay ${j.pay?'':'none'}" ${low?'style="color:var(--bad)"':''}>${j.pay?fmt(j.pay)+'/yr <span class="note" style="font-size:.8rem;'+(low?'color:var(--bad)':'')+'">'+hourly(j.pay)+'</span>'+(low?'<div class="note" style="font-size:.74rem;color:var(--bad)">below your minimum</div>':''):'pay not listed'}</div>
       <div class="odds ${band}"><div class="pct">${s.pct}%</div><div class="lbl">hire likelihood</div><div class="meter"><i style="width:${s.pct}%"></i></div></div>
     </div>`;
-    const t=c.querySelector('.title > *');t.textContent=j.title;if(j.url)t.href=safeUrl(j.url);
+    const ti=c.querySelector('.title > *');ti.textContent=j.title;if(j.url)ti.href=safeUrl(j.url);
     c.querySelector('.co').textContent=(j.company||'')+(j.date?' · '+new Date(j.date).toLocaleDateString():'');
     c.querySelector('.src').textContent=j.source;c.querySelector('.loc').textContent=j.location||'location not listed';
     c.querySelector('.why').textContent=s.why.length?'Why: '+s.why.join(' · '):'Why: nothing in the posting matches your past jobs or skills yet';
+    c.querySelector('.gap').textContent=r.gaps.length?'Missing: '+r.gaps.slice(0,8).join(', ')+(r.gaps.length>8?' +'+(r.gaps.length-8)+' more':''):'Missing: none of the skills we recognize';
     c.querySelector('.desc').textContent=j.description;
+    const at=c.querySelector('.applied-tag');if(at)at.textContent='Applied '+t.applied;
+    const bs=c.querySelector('.b-save');bs.textContent=t.saved?'★ Saved':'☆ Save';bs.onclick=()=>{setTrack(j.id,{saved:!t.saved});renderResults()};
+    const ba=c.querySelector('.b-app');ba.textContent=t.applied?'Undo applied':'Mark applied';ba.onclick=()=>{setTrack(j.id,{applied:t.applied?null:new Date().toISOString().slice(0,10),saved:true});renderResults()};
     el.appendChild(c);
   });
 }
