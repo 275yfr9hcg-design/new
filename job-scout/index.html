@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com https://remoteok.com https://himalayas.app https://api.adzuna.com; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com https://remoteok.com https://himalayas.app https://api.adzuna.com https://jooble.org https://public.api.careerjet.net https://data.usajobs.gov; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Job Scout</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -149,11 +149,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <div class="field" style="margin-top:8px"><label for="p-desc">Description (paste the whole posting, pay gets read out of it)</label><textarea id="p-desc"></textarea></div>
         <div class="row" style="margin-top:8px"><button class="primary" id="p-add">Add and score</button></div>
       </div>
-      <details style="margin-top:12px"><summary class="note">Unlock local, all-industry listings (Adzuna, free key)</summary>
-        <p class="note" style="margin:8px 0">The remote feeds don't carry local trucking, shop or warehouse jobs. Adzuna does, and gives free keys: go to <span style="font-family:var(--mono)">developer.adzuna.com</span>, sign up, and paste your App ID and App Key here. They stay in this browser only.</p>
-        <div class="row"><div class="field"><label for="adz-id">App ID</label><input id="adz-id" autocomplete="off" spellcheck="false"></div><div class="field"><label for="adz-key">App Key</label><input id="adz-key" type="password" autocomplete="off"></div></div>
+      <details style="margin-top:12px" id="keys"><summary class="note">Unlock local, all-industry listings (free keys) · <span id="src-count"></span></summary>
+        <p class="note" style="margin:8px 0">The no-key feeds are remote office and tech work. These boards cover local trucking, shop, warehouse, retail and government jobs but need a free key. Sign up at each site, paste the key here, and it stays in this browser only. Adzuna is the biggest single win.</p>
+        <div class="row"><div class="field"><label for="adz-id">Adzuna App ID <span class="note">(developer.adzuna.com)</span></label><input id="adz-id" autocomplete="off" spellcheck="false"></div><div class="field"><label for="adz-key">Adzuna App Key</label><input id="adz-key" type="password" autocomplete="off"></div></div>
+        <div class="row" style="margin-top:8px"><div class="field"><label for="jooble-key">Jooble key <span class="note">(jooble.org/api/about)</span></label><input id="jooble-key" type="password" autocomplete="off"></div><div class="field"><label for="cj-key">Careerjet affiliate ID <span class="note">(careerjet.com/partners)</span></label><input id="cj-key" autocomplete="off" spellcheck="false"></div></div>
+        <div class="row" style="margin-top:8px"><div class="field"><label for="usaj-key">USAJobs key <span class="note">(developer.usajobs.gov)</span></label><input id="usaj-key" type="password" autocomplete="off"></div><div class="field"><label for="usaj-email">USAJobs account email</label><input id="usaj-email" autocomplete="off" spellcheck="false"></div></div>
       </details>
-      <p class="note" style="margin-top:12px">Sources: Adzuna (needs the free key above) plus Remotive, Jobicy, RemoteOK, Himalayas, The Muse and Arbeitnow (remote office and tech). Separate several searches with commas, like "truck driver, dispatcher, warehouse manager". Leave keywords blank to search your past job titles. The big boards don't let pages pull their listings, so the buttons below run your search there; paste the good ones back here to score them.</p>
+      <p class="note" style="margin-top:12px">Sources: Adzuna, Jooble, Careerjet and USAJobs (with the free keys above) plus Remotive, Jobicy, RemoteOK, Himalayas, The Muse and Arbeitnow (remote office and tech). Separate several searches with commas, like "truck driver, dispatcher, warehouse manager". Leave keywords blank to search your past job titles. The big boards don't let pages pull their listings, so the buttons below run your search there; paste the good ones back here to score them.</p>
     </section>
   </div>
 
@@ -404,12 +406,22 @@ const sources={
     return (Array.isArray(d)?d:[]).filter(j=>j&&j.position).map(j=>({id:'ro'+j.id,title:j.position,company:j.company,location:'Remote · '+(j.location||'Anywhere'),url:j.url,description:strip(j.description)+' '+(j.tags||[]).join(' '),pay:(j.salary_min&&j.salary_max)?(+j.salary_min+ +j.salary_max)/2:parsePay(j.description),date:j.date,source:'RemoteOK'}))},
   async adzuna(q){const k=adzKey();if(!k)throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();let out=[];for(let p=1;p<=2;p++){const d=await fetchJSON('https://api.adzuna.com/v1/api/jobs/us/search/'+p+'?app_id='+encodeURIComponent(k.id)+'&app_key='+encodeURIComponent(k.key)+'&results_per_page=50&what='+encodeURIComponent(q)+(l?'&where='+encodeURIComponent(l)+'&distance=50':'')+'&content-type=application/json');out=out.concat(d.results||[]);if((d.results||[]).length<50)break}
     return out.map(j=>({id:'az'+j.id,title:j.title,company:j.company&&j.company.display_name,location:j.location&&j.location.display_name,url:j.redirect_url,description:strip(j.description),pay:(j.salary_min&&j.salary_max)?(j.salary_min+j.salary_max)/2:parsePay(j.description),date:j.created,source:'Adzuna'}))},
+  async jooble(q){const k=K('jooble-key');if(!/^[a-f0-9-]{20,}$/i.test(k))throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();
+    const r=await fetch('https://jooble.org/api/'+encodeURIComponent(k),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keywords:q,location:l,page:1})});if(!r.ok)throw new Error(r.status);const d=await r.json();
+    return (d.jobs||[]).map(j=>({id:'jb'+j.id,title:j.title,company:j.company,location:j.location,url:j.link,description:strip(j.snippet),pay:parsePay(j.salary)||parsePay(j.snippet),date:j.updated,source:'Jooble'}))},
+  async careerjet(q){const k=K('cj-key');if(!/^[a-f0-9]{16,}$/i.test(k))throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();
+    const d=await fetchJSON('https://public.api.careerjet.net/search?locale_code=en_US&affid='+encodeURIComponent(k)+'&user_ip=1.1.1.1&user_agent=jobscout&pagesize=50&keywords='+encodeURIComponent(q)+(l?'&location='+encodeURIComponent(l):''));
+    return (d.jobs||[]).map((j,i)=>({id:'cj'+(j.url||i),title:j.title,company:j.company,location:j.locations,url:j.url,description:strip(j.description),pay:parsePay(j.salary)||parsePay(j.description),date:j.date,source:'Careerjet'}))},
+  async usajobs(q){const k=K('usaj-key'),em=K('usaj-email');if(k.length<20||!em.includes('@'))throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();
+    const r=await fetch('https://data.usajobs.gov/api/search?ResultsPerPage=50&Keyword='+encodeURIComponent(q)+(l?'&LocationName='+encodeURIComponent(l)+'&Radius=75':''),{headers:{'Authorization-Key':k,'User-Agent':em,'Host':'data.usajobs.gov'}});if(!r.ok)throw new Error(r.status);const d=await r.json();
+    return ((d.SearchResult||{}).SearchResultItems||[]).map(x=>{const j=x.MatchedObjectDescriptor||{};const p=(j.PositionRemuneration||[])[0]||{};return {id:'uj'+x.MatchedObjectId,title:j.PositionTitle,company:j.OrganizationName,location:(j.PositionLocation||[]).map(z=>z.LocationName).slice(0,2).join('; '),url:j.PositionURI,description:strip((j.UserArea&&j.UserArea.Details&&j.UserArea.Details.JobSummary)||j.QualificationSummary),pay:(p.MinimumRange&&p.MaximumRange&&/year/i.test(p.Description||''))?(+p.MinimumRange+ +p.MaximumRange)/2:null,date:j.PublicationStartDate,source:'USAJobs'}})},
   async himalayas(q){const d=await fetchJSON('https://himalayas.app/jobs/api?limit=100');
     return (d.jobs||[]).map((j,i)=>({id:'hi'+(j.applicationLink||j.title+i),title:j.title,company:j.companyName,location:'Remote · '+((j.locationRestrictions||[]).join(', ')||'Anywhere'),url:j.applicationLink,description:strip(j.description),pay:(j.minSalary&&j.maxSalary)?(+j.minSalary+ +j.maxSalary)/2:parsePay(j.description),date:j.pubDate?new Date(j.pubDate*1000).toISOString():'',source:'Himalayas'}))}
 };
-function adzKey(){const id=(store.get('js.adz_id','')||'').trim(),key=(store.get('js.adz_key','')||'').trim();return /^[a-f0-9]{8}$/i.test(id)&&/^[a-f0-9]{32}$/i.test(key)?{id,key}:null}
-$('adz-id').value=store.get('js.adz_id','');$('adz-key').value=store.get('js.adz_key','');
-$('adz-id').addEventListener('input',e=>store.set('js.adz_id',e.target.value.trim()));$('adz-key').addEventListener('input',e=>store.set('js.adz_key',e.target.value.trim()));
+const KEYFIELDS=['adz-id','adz-key','jooble-key','cj-key','usaj-key','usaj-email'];
+KEYFIELDS.forEach(id=>{$(id).value=store.get('js.'+id,'');$(id).addEventListener('input',e=>store.set('js.'+id,e.target.value.trim()))});
+const K=id=>(store.get('js.'+id,'')||'').trim();
+function adzKey(){const id=K('adz-id'),key=K('adz-key');return /^[a-f0-9]{8}$/i.test(id)&&/^[a-f0-9]{32}$/i.test(key)?{id,key}:null}
 // Boards that don't allow pages to pull listings: hand the search off to them instead.
 const HANDOFF=[
   ['Indeed',(q,l)=>'https://www.indeed.com/jobs?q='+q+(l?'&l='+l:'')],
@@ -427,6 +439,9 @@ function renderHandoff(){
   HANDOFF.forEach(([name,fn])=>{const a=document.createElement('a');a.className='tag';a.style.cssText='padding:6px 10px;font-size:.82rem;text-decoration:none;flex:0 0 auto';a.target='_blank';a.rel='noopener noreferrer';a.href=fn(q,l);a.textContent=name;el.appendChild(a)});
 }
 $('q').addEventListener('input',renderHandoff);$('loc').addEventListener('input',renderHandoff);renderHandoff();
+function srcCount(){const total=Object.keys(sources).length,on=total-Object.values(KEYED).filter(f=>!f()).length;$('src-count').textContent=on+' of '+total+' sources active'}
+KEYFIELDS.forEach(id=>$(id).addEventListener('input',()=>srcCount()));
+const KEYED={adzuna:()=>!!adzKey(),jooble:()=>K('jooble-key').length>=20,careerjet:()=>K('cj-key').length>=16,usajobs:()=>K('usaj-key').length>=20};
 // A listing counts only if it mentions the search terms, and only if it is in the chosen region.
 function relevant(j,q){
   const words=tokens(q);if(!words.length)return true;
@@ -453,7 +468,7 @@ $('search').onclick=async()=>{
   setStatus('Searching…');$('search').disabled=true;
   const got=[],errs=[];
   const terms=q.split(/\s*,\s*/).filter(Boolean).slice(0,4);
-  await Promise.all(Object.entries(sources).map(async([n,f])=>{let ok=false;for(const t of terms){try{got.push(...await f(t));ok=true}catch(e){}}if(!ok&&!(n==='adzuna'&&!adzKey()))errs.push(n)}));
+  await Promise.all(Object.entries(sources).map(async([n,f])=>{let ok=false;for(const t of terms){try{got.push(...await f(t));ok=true}catch(e){}}if(!ok&&!(KEYED[n]&&!KEYED[n]()))errs.push(n)}));
   $('search').disabled=false;
   const seen=new Set(results.map(r=>r.id));
   const kept=got.map(clean).filter(j=>relevant(j,q)&&inRegion(j));
@@ -541,7 +556,7 @@ function renderResults(){
     el.appendChild(c);
   });
 }
-renderPast();renderResults();
+renderPast();renderResults();srcCount();
 })();
 </script>
 </body>
