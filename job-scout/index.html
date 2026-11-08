@@ -150,8 +150,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <div class="row" style="margin-top:8px"><button class="primary" id="p-add">Add and score</button></div>
       </div>
       <details style="margin-top:12px" id="keys"><summary class="note">Unlock local, all-industry listings (free keys) · <span id="src-count"></span></summary>
-        <p class="note" style="margin:8px 0">The no-key feeds are remote office and tech work. These boards cover local trucking, shop, warehouse, retail and government jobs but need a free key. Sign up at each site, paste the key here, and it stays in this browser only. Adzuna is the biggest single win.</p>
+        <p class="note" style="margin:8px 0">The no-key feeds are remote office and tech work. These boards cover local trucking, shop, warehouse, retail and government jobs but need a free key. Sign up at each site, paste the key here, and it stays in this browser only. Adzuna is the biggest single win, but its free plan is only 25 test calls (1 call per keyword per search), so use specific keywords.</p>
         <div class="row"><div class="field"><label for="adz-id">Adzuna App ID <span class="note">(developer.adzuna.com)</span></label><input id="adz-id" autocomplete="off" spellcheck="false"></div><div class="field"><label for="adz-key">Adzuna App Key</label><input id="adz-key" type="password" autocomplete="off"></div></div>
+        <p class="note" id="adz-used" style="margin-top:4px"></p>
         <div class="row" style="margin-top:8px"><div class="field"><label for="jooble-key">Jooble key <span class="note">(jooble.org/api/about)</span></label><input id="jooble-key" type="password" autocomplete="off"></div><div class="field"><label for="cj-key">Careerjet affiliate ID <span class="note">(careerjet.com/partners)</span></label><input id="cj-key" autocomplete="off" spellcheck="false"></div></div>
         <div class="row" style="margin-top:8px"><div class="field"><label for="usaj-key">USAJobs key <span class="note">(developer.usajobs.gov)</span></label><input id="usaj-key" type="password" autocomplete="off"></div><div class="field"><label for="usaj-email">USAJobs account email</label><input id="usaj-email" autocomplete="off" spellcheck="false"></div></div>
       </details>
@@ -404,7 +405,7 @@ const sources={
     return (d.jobs||[]).map(j=>({id:'jc'+j.id,title:j.jobTitle,company:j.companyName,location:'Remote · '+(j.jobGeo||'Anywhere'),url:j.url,description:strip(j.jobDescription||j.jobExcerpt),pay:(j.annualSalaryMin&&j.annualSalaryMax&&j.salaryCurrency==='USD')?(+j.annualSalaryMin+ +j.annualSalaryMax)/2:parsePay(j.jobDescription),date:j.pubDate,source:'Jobicy'}))},
   async remoteok(q){const d=await fetchJSON('https://remoteok.com/api');
     return (Array.isArray(d)?d:[]).filter(j=>j&&j.position).map(j=>({id:'ro'+j.id,title:j.position,company:j.company,location:'Remote · '+(j.location||'Anywhere'),url:j.url,description:strip(j.description)+' '+(j.tags||[]).join(' '),pay:(j.salary_min&&j.salary_max)?(+j.salary_min+ +j.salary_max)/2:parsePay(j.description),date:j.date,source:'RemoteOK'}))},
-  async adzuna(q){const k=adzKey();if(!k)throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();let out=[];for(let p=1;p<=2;p++){const d=await fetchJSON('https://api.adzuna.com/v1/api/jobs/us/search/'+p+'?app_id='+encodeURIComponent(k.id)+'&app_key='+encodeURIComponent(k.key)+'&results_per_page=50&what='+encodeURIComponent(q)+(l?'&where='+encodeURIComponent(l)+'&distance=50':'')+'&content-type=application/json');out=out.concat(d.results||[]);if((d.results||[]).length<50)break}
+  async adzuna(q){const k=adzKey();if(!k)throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();let out=[];for(let p=1;p<=1;p++){store.set('js.adz_calls',(store.get('js.adz_calls',0)|0)+1);adzUsed();const d=await fetchJSON('https://api.adzuna.com/v1/api/jobs/us/search/'+p+'?app_id='+encodeURIComponent(k.id)+'&app_key='+encodeURIComponent(k.key)+'&results_per_page=50&what='+encodeURIComponent(q)+(l?'&where='+encodeURIComponent(l)+'&distance=50':'')+'&content-type=application/json');out=out.concat(d.results||[]);if((d.results||[]).length<50)break}
     return out.map(j=>({id:'az'+j.id,title:j.title,company:j.company&&j.company.display_name,location:j.location&&j.location.display_name,url:j.redirect_url,description:strip(j.description),pay:(j.salary_min&&j.salary_max)?(j.salary_min+j.salary_max)/2:parsePay(j.description),date:j.created,source:'Adzuna'}))},
   async jooble(q){const k=K('jooble-key');if(!/^[a-f0-9-]{20,}$/i.test(k))throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();
     const r=await fetch('https://jooble.org/api/'+encodeURIComponent(k),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keywords:q,location:l,page:1})});if(!r.ok)throw new Error(r.status);const d=await r.json();
@@ -421,6 +422,7 @@ const sources={
 const KEYFIELDS=['adz-id','adz-key','jooble-key','cj-key','usaj-key','usaj-email'];
 KEYFIELDS.forEach(id=>{$(id).value=store.get('js.'+id,'');$(id).addEventListener('input',e=>store.set('js.'+id,e.target.value.trim()))});
 const K=id=>(store.get('js.'+id,'')||'').trim();
+function adzUsed(){const n=store.get('js.adz_calls',0)|0;$('adz-used').textContent=n?n+' Adzuna calls used on this device (free plan allows 25)':''}
 function adzKey(){const id=K('adz-id'),key=K('adz-key');return /^[a-f0-9]{8}$/i.test(id)&&/^[a-f0-9]{32}$/i.test(key)?{id,key}:null}
 // Boards that don't allow pages to pull listings: hand the search off to them instead.
 const HANDOFF=[
@@ -556,7 +558,7 @@ function renderResults(){
     el.appendChild(c);
   });
 }
-renderPast();renderResults();srcCount();
+renderPast();renderResults();srcCount();adzUsed();
 })();
 </script>
 </body>
