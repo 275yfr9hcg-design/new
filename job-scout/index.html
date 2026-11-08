@@ -116,8 +116,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <input id="extra" placeholder="HTML, CSS, JavaScript, React, Python"></div>
       <div class="row" style="margin-top:12px">
         <button class="primary" id="search">Search live listings</button>
-        <button id="indeed">Open on Indeed</button>
         <button id="paste-toggle">Paste a listing</button>
+      </div>
+      <div style="margin-top:12px">
+        <label>Run this same search on other sites (opens in a new tab)</label>
+        <div class="row" id="handoff" style="gap:6px"></div>
       </div>
       <div id="paste-box" hidden style="margin-top:10px">
         <div class="row">
@@ -128,7 +131,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <div class="field" style="margin-top:8px"><label for="p-desc">Description (paste the whole posting, pay gets read out of it)</label><textarea id="p-desc"></textarea></div>
         <div class="row" style="margin-top:8px"><button class="primary" id="p-add">Add and score</button></div>
       </div>
-      <p class="note" style="margin-top:12px">Sources: Remotive, Jobicy, RemoteOK, Himalayas, The Muse and Arbeitnow (public feeds, mostly remote office and tech work). Try job-title keywords like "web developer" or "customer support". Indeed doesn't allow pages to pull its listings, so "Open on Indeed" runs your search there; paste the good ones back here to score them.</p>
+      <p class="note" style="margin-top:12px">Sources: Remotive, Jobicy, RemoteOK, Himalayas, The Muse and Arbeitnow (public feeds, mostly remote office and tech work). Try job-title keywords like "web developer" or "customer support". The big boards don't let pages pull their listings, so the buttons below run your search there; paste the good ones back here to score them.</p>
     </section>
   </div>
 
@@ -262,8 +265,23 @@ const sources={
   async himalayas(q){const d=await fetchJSON('https://himalayas.app/jobs/api?limit=100');
     return (d.jobs||[]).map((j,i)=>({id:'hi'+(j.applicationLink||j.title+i),title:j.title,company:j.companyName,location:'Remote · '+((j.locationRestrictions||[]).join(', ')||'Anywhere'),url:j.applicationLink,description:strip(j.description),pay:(j.minSalary&&j.maxSalary)?(+j.minSalary+ +j.maxSalary)/2:parsePay(j.description),date:j.pubDate?new Date(j.pubDate*1000).toISOString():'',source:'Himalayas'}))}
 };
-function indeedLink(){const q=$('q').value.trim(),l=$('loc').value.trim();return 'https://www.indeed.com/jobs?q='+encodeURIComponent(q)+(l?'&l='+encodeURIComponent(l):'')}
-$('indeed').onclick=()=>{window.open(indeedLink(),'_blank','noopener')};
+// Boards that don't allow pages to pull listings: hand the search off to them instead.
+const HANDOFF=[
+  ['Indeed',(q,l)=>'https://www.indeed.com/jobs?q='+q+(l?'&l='+l:'')],
+  ['LinkedIn',(q,l)=>'https://www.linkedin.com/jobs/search/?keywords='+q+(l?'&location='+l:'')],
+  ['ZipRecruiter',(q,l)=>'https://www.ziprecruiter.com/jobs-search?search='+q+(l?'&location='+l:'')],
+  ['Glassdoor',(q,l)=>'https://www.glassdoor.com/Job/jobs.htm?sc.keyword='+q+(l?'&locKeyword='+l:'')],
+  ['Google Jobs',(q,l)=>'https://www.google.com/search?ibp=htl;jobs&q='+q+(l?'+'+l:'')+'+jobs'],
+  ['SimplyHired',(q,l)=>'https://www.simplyhired.com/search?q='+q+(l?'&l='+l:'')],
+  ['USAJobs',(q,l)=>'https://www.usajobs.gov/search/results/?k='+q+(l?'&l='+l:'')],
+  ['Craigslist',(q,l)=>'https://www.craigslist.org/search/jjj?query='+q],
+];
+function renderHandoff(){
+  const q=encodeURIComponent($('q').value.trim()),l=encodeURIComponent($('loc').value.trim().split('/')[0].trim());
+  const el=$('handoff');el.innerHTML='';
+  HANDOFF.forEach(([name,fn])=>{const a=document.createElement('a');a.className='tag';a.style.cssText='padding:6px 10px;font-size:.82rem;text-decoration:none;flex:0 0 auto';a.target='_blank';a.rel='noopener noreferrer';a.href=fn(q,l);a.textContent=name;el.appendChild(a)});
+}
+$('q').addEventListener('input',renderHandoff);$('loc').addEventListener('input',renderHandoff);renderHandoff();
 // A listing counts only if it mentions the search terms, and only if it is in the chosen region.
 function relevant(j,q){
   const words=tokens(q);if(!words.length)return true;
