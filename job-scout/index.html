@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Job Scout</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -110,6 +110,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
       <div class="row" style="margin-top:8px">
         <div class="field"><label for="loc">Location filter (blank for any)</label><input id="loc" placeholder="Charleston, SC / remote"></div>
         <div class="field"><label for="minpay">Minimum pay ($/yr, blank for none)</label><input id="minpay" type="number" min="0" step="1000" placeholder="45000"></div>
+        <div class="field"><label for="region">Region</label><select id="region"><option value="us">US + remote</option><option value="remote">Remote only</option><option value="any">Anywhere</option></select></div>
       </div>
       <div class="field" style="margin-top:8px"><label for="extra">Other skills or certifications you have</label>
         <input id="extra" placeholder="HTML, CSS, JavaScript, React, Python"></div>
@@ -126,7 +127,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <div class="field" style="margin-top:8px"><label for="p-desc">Description (paste the whole posting, pay gets read out of it)</label><textarea id="p-desc"></textarea></div>
         <div class="row" style="margin-top:8px"><button class="primary" id="p-add">Add and score</button></div>
       </div>
-      <p class="note" style="margin-top:12px">Sources: Remotive, Arbeitnow and The Muse (public job feeds, mostly remote and tech). Local shop and trade jobs usually aren't on these feeds, so paste those in from Indeed and they'll be scored the same way.</p>
+      <p class="note" style="margin-top:12px">Sources: Remotive, Jobicy, The Muse and Arbeitnow (public job feeds, mostly remote office and tech work). Try job-title keywords like "web developer" or "customer support". Local shop, trade and hands-on jobs usually aren't on these feeds, so paste those in from Indeed and they'll be scored the same way.</p>
     </section>
   </div>
 
@@ -161,7 +162,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v)
 let pastJobs=(store.get('js.past',[])||[]).filter(j=>j&&typeof j.title==='string').map(j=>({title:j.title.slice(0,120),years:Number(j.years)||0,skills:Array.isArray(j.skills)?j.skills.map(String).slice(0,60):[]}));
 let results=(store.get('js.results',[])||[]).filter(j=>j&&typeof j.id==='string').map(j=>clean({...j,description:String(j.description||'').slice(0,20000)}));
 let hideNoPay=false;
-['q','loc','minpay','extra'].forEach(id=>{$(id).value=store.get('js.'+id,'');$(id).addEventListener('input',()=>store.set('js.'+id,$(id).value))});
+['q','loc','minpay','extra','region'].forEach(id=>{$(id).value=store.get('js.'+id,'');$(id).addEventListener('input',()=>store.set('js.'+id,$(id).value))});
 
 // ---------- past jobs ----------
 function renderPast(){
@@ -252,8 +253,24 @@ const sources={
     return out.map(j=>({id:'ab'+j.slug,title:j.title,company:j.company_name,location:(j.remote?'Remote · ':'')+(j.location||''),url:j.url,description:strip(j.description),pay:parsePay(j.description),date:new Date((j.created_at||0)*1000).toISOString(),source:'Arbeitnow'}))},
   async muse(q){let out=[];for(let p=0;p<2;p++){const d=await fetchJSON('https://www.themuse.com/api/public/jobs?page='+p+'&descending=true');out=out.concat(d.results||[])}
     const ql=tokens(q);return out.filter(j=>!ql.length||ql.some(w=>(j.name+' '+(j.categories||[]).map(c=>c.name).join(' ')).toLowerCase().includes(w)))
-      .map(j=>({id:'mu'+j.id,title:j.name,company:j.company&&j.company.name,location:(j.locations||[]).map(l=>l.name).join('; '),url:j.refs&&j.refs.landing_page,description:strip(j.contents),pay:parsePay(j.contents),date:j.publication_date,source:'The Muse'}))}
+      .map(j=>({id:'mu'+j.id,title:j.name,company:j.company&&j.company.name,location:(j.locations||[]).map(l=>l.name).join('; '),url:j.refs&&j.refs.landing_page,description:strip(j.contents),pay:parsePay(j.contents),date:j.publication_date,source:'The Muse'}))},
+  async jobicy(q){const d=await fetchJSON('https://jobicy.com/api/v2/remote-jobs?count=50&tag='+encodeURIComponent(q));
+    return (d.jobs||[]).map(j=>({id:'jc'+j.id,title:j.jobTitle,company:j.companyName,location:'Remote · '+(j.jobGeo||'Anywhere'),url:j.url,description:strip(j.jobDescription||j.jobExcerpt),pay:(j.annualSalaryMin&&j.annualSalaryMax&&j.salaryCurrency==='USD')?(+j.annualSalaryMin+ +j.annualSalaryMax)/2:parsePay(j.jobDescription),date:j.pubDate,source:'Jobicy'}))}
 };
+// A listing counts only if it mentions the search terms, and only if it is in the chosen region.
+function relevant(j,q){
+  const words=tokens(q);if(!words.length)return true;
+  const title=(j.title||'').toLowerCase(),body=(j.description||'').toLowerCase();
+  return words.some(w=>title.includes(w))||words.every(w=>body.includes(w));
+}
+const US=/\b(usa?|u\.s\.a?|united states|america|remote|anywhere|worldwide|global|[a-z ]+,\s?(al|ak|az|ar|ca|co|ct|de|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy|dc)\b)/i;
+function inRegion(j){
+  const r=$('region').value,loc=(j.location||'')+' '+(j.title||'');
+  if(r==='any')return true;
+  const remote=/remote|anywhere|worldwide|global/i.test(loc);
+  if(r==='remote')return remote;
+  return US.test(loc)||/\b(new york|los angeles|chicago|houston|charleston|atlanta|austin|seattle|boston|denver|dallas|miami|phoenix|portland)\b/i.test(loc);
+}
 // DOMParser builds an inert document: scripts never run and <img onerror> never fires, unlike innerHTML on a div.
 function strip(html){const doc=new DOMParser().parseFromString(String(html||''),'text/html');return (doc.body.textContent||'').replace(/\s+\n/g,'\n').trim().slice(0,20000)}
 // Only plain http(s) links are allowed through; javascript:/data: links from a feed are dropped.
@@ -266,9 +283,10 @@ $('search').onclick=async()=>{
   await Promise.all(Object.entries(sources).map(async([n,f])=>{try{got.push(...await f(q))}catch(e){errs.push(n)}}));
   $('search').disabled=false;
   const seen=new Set(results.map(r=>r.id));
-  got.map(clean).forEach(j=>{if(!seen.has(j.id)){seen.add(j.id);results.push(j)}});
+  const kept=got.map(clean).filter(j=>relevant(j,q)&&inRegion(j));
+  kept.forEach(j=>{if(!seen.has(j.id)){seen.add(j.id);results.push(j)}});
   store.set('js.results',results);
-  setStatus(`${got.length} fetched${errs.length?' · failed: '+errs.join(', '):''}`);
+  setStatus(`${got.length} fetched, ${kept.length} match${errs.length?' · failed: '+errs.join(', '):''}`);
   const b=$('banner');
   if(errs.length===Object.keys(sources).length){b.hidden=false;b.textContent=location.protocol==='file:'
     ?'The job feeds could not be reached. This file is opened directly from your device, and phone browsers block local files from calling other websites. Put it on a web host (any https link) and search will work, or use "Paste a listing" to score jobs you copy from Indeed.'
