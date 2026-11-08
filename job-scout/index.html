@@ -83,6 +83,12 @@ button.small{padding:4px 10px;font-size:.82rem}
 details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8px}
 .desc{font-size:.88rem;max-height:260px;overflow:auto;margin-top:8px;padding:12px;background:var(--input);border-radius:12px;white-space:pre-wrap}
 .empty{color:var(--muted);text-align:center;padding:32px 12px}
+.cert-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:10px}
+.cert{background:var(--input);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:8px;min-width:0}
+.cert-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.cert-name{font-weight:600}
+.cert-pay{text-align:right;white-space:nowrap}.cert-pay .pay{font-size:.95rem}.cert-pay .lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cert-meta{display:flex;gap:6px;flex-wrap:wrap}
 .note{font-size:.82rem;color:var(--muted)}
 @media (max-width:560px){.card{grid-template-columns:1fr}.nums{text-align:left;grid-auto-flow:column;justify-content:start;gap:20px}}
 @media (prefers-reduced-motion:no-preference){.meter i{transition:width .4s ease}}
@@ -195,6 +201,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
       <h2 style="margin-bottom:6px">Skills that would boost you most</h2>
       <p class="note">Skills these listings ask for that aren't in your profile, ranked by how many postings want them. Learn one, add it above, and watch the scores move.</p>
       <div class="tags" id="gap-tags" style="margin-top:8px"></div>
+    </div>
+    <div class="panel" style="margin:10px 0">
+      <div class="toolbar"><div class="left"><h2 style="margin:0">Earn more without a degree</h2></div>
+        <div class="right"><label for="cert-track" style="margin:0">Show</label><select id="cert-track" style="width:auto"><option value="all">Best fits for you</option><option value="transportation">Transportation</option><option value="logistics">Logistics</option><option value="automotive">Automotive</option><option value="trades">Trades</option><option value="tech">Tech</option><option value="business">Business</option><option value="marketing">Marketing</option><option value="healthcare">Healthcare</option><option value="sales">Sales</option><option value="security">Security</option></select></div></div>
+      <p class="note" style="margin-top:6px">Certifications you can finish in days to about a year, ranked by how well they build on your past jobs, how often your results ask for them, and the pay jump. Pay is the typical U.S. range for the jobs each one opens (BLS 2023–2025); local offers vary.</p>
+      <div class="cert-grid" id="cert-list"></div>
     </div>
     <div class="ledger" id="ledger"><p class="empty">Add a past job or two, type what you're looking for, and search.</p></div>
   </section>
@@ -513,6 +525,81 @@ $('p-add').onclick=()=>{
   store.set('js.results',results);renderResults();
 };
 
+// ---------- quick-win certifications (no degree) ----------
+// pay = typical US median for the jobs it opens (BLS OEWS 2023-2025, rounded). time/cost are typical ranges.
+const CERTS=[
+ // transportation & logistics
+ {name:'CDL Class A',track:'Transportation',time:'3–7 weeks',cost:'$3k–7k (often paid by carriers)',pay:54000,high:80000,opens:['truck driver','OTR driver','regional driver','local delivery driver'],from:['truck','driver','delivery','cdl','class b','forklift','dispatch','logistics','warehouse','automotive','mechanic'],gaps:['cdl','class a','trucking','freight','otr','regional','dot','eld'],note:'Fastest route to a solid raise from almost any hands-on job. Tanker and hazmat endorsements add more.'},
+ {name:'Hazmat + Tanker endorsements (H/N/X)',track:'Transportation',time:'1–2 weeks after CDL',cost:'$100–200 + TSA check',pay:65000,high:95000,opens:['tanker driver','fuel hauler','chemical transport'],from:['truck','driver','cdl','class a'],gaps:['hazmat','tanker'],note:'Only worth it with a CDL in hand, but it is the biggest pay bump per week of effort in trucking.'},
+ {name:'Forklift certification (OSHA)',track:'Logistics',time:'1–2 days',cost:'$50–200 (often free from employer)',pay:42000,high:52000,opens:['warehouse associate','forklift operator','shipping/receiving'],from:['warehouse','loading','stocker','retail','laborer','mover'],gaps:['forklift','forklift certified','reach truck','pallet jack','warehouse','shipping','receiving'],note:'Tiny effort, opens every warehouse door.'},
+ {name:'Dispatcher / logistics coordinator training',track:'Logistics',time:'4–8 weeks',cost:'$0–1,500',pay:48000,high:65000,opens:['dispatcher','logistics coordinator','fleet coordinator'],from:['driver','truck','dispatch','customer service','scheduling','team management','managed a team'],gaps:['dispatching','dispatch','logistics','route planning','load board','fleet management','supply chain'],note:'Natural step up from driving into an office role, especially with team lead experience.'},
+ // automotive
+ {name:'ASE A-series (A1–A8) Master Technician',track:'Automotive',time:'3–12 months of testing (2 yrs experience, or 1 yr + training)',cost:'$50 reg + ~$50/test',pay:50000,high:75000,opens:['automotive technician','master technician','shop foreman'],from:['technician','automotive','mechanic','oil change','brake','tire','ase','lube'],gaps:['ase','diagnostics','engine repair','transmission','suspension','electrical systems','scan tool'],note:'Lapsed entry-level ASEs recertify fast. Each A-series cert typically adds $1–3/hr at dealers and chains.'},
+ {name:'EPA 608 Universal (refrigerant handling)',track:'Automotive / HVAC',time:'1–2 weeks',cost:'$25–150',pay:52000,high:70000,opens:['HVAC helper','auto A/C technician','appliance repair'],from:['technician','automotive','mechanic','hvac','maintenance','electrical'],gaps:['hvac','heating and air','refrigerant'],note:'Required by law to touch refrigerant. Cheap and quick; pairs with both auto and HVAC paths.'},
+ {name:'State vehicle inspection license',track:'Automotive',time:'1–3 days',cost:'$0–100',pay:46000,high:60000,opens:['inspection technician','service advisor'],from:['technician','automotive','mechanic','oil change'],gaps:['state inspection'],note:'Shops need licensed inspectors on every shift, so it makes you harder to replace.'},
+ {name:'Diesel technician certificate',track:'Automotive',time:'6–12 months',cost:'$3k–15k (community college / trade school)',pay:58000,high:80000,opens:['diesel mechanic','fleet technician','heavy equipment tech'],from:['technician','automotive','mechanic','truck','cdl','ase'],gaps:['diesel','fleet','preventive maintenance','troubleshooting'],note:'Diesel pays well above light auto and fleets hire year-round.'},
+ // trades
+ {name:'HVAC technician certificate + EPA 608',track:'Trades',time:'6–12 months',cost:'$1.5k–15k',pay:61000,high:85000,opens:['HVAC installer','HVAC service technician'],from:['technician','mechanic','electrical','maintenance','construction','automotive'],gaps:['hvac','heating and air','electrical','troubleshooting','preventive maintenance'],note:'Strong demand in the Southeast; many companies pay for school if you start as a helper.'},
+ {name:'Electrician apprenticeship (IBEW / IEC)',track:'Trades',time:'Earn while you learn, 4 yrs to journeyman; helper pay starts day one',cost:'$0 (paid apprenticeship)',pay:63000,high:100000,opens:['electrical apprentice','electrician','lineworker (further training)'],from:['electrical','technician','construction','maintenance','laborer','automotive'],gaps:['electrical','electrical systems','blueprints','wiring'],note:'Long path but paid from day one and one of the highest-ceiling trades.'},
+ {name:'OSHA 10 / OSHA 30',track:'Trades',time:'2–4 days online',cost:'$60–200',pay:45000,high:60000,opens:['construction laborer','site safety','warehouse lead'],from:['construction','laborer','warehouse','landscaping','roofing','framing'],gaps:['osha','safety','safety compliance'],note:'Required on many job sites; OSHA 30 is the one supervisors need.'},
+ {name:'Welding certification (AWS D1.1 / SENSE)',track:'Trades',time:'3–9 months',cost:'$3k–12k',pay:50000,high:80000,opens:['welder','fabricator','pipe welder'],from:['welding','fabrication','mechanic','construction','metal'],gaps:['welding','blueprints','hand tools','power tools'],note:'Pipe and structural certs pay far more than general MIG.'},
+ {name:'NCCER Core + Carpentry Level 1',track:'Trades',time:'3–6 months',cost:'$500–3k',pay:56000,high:75000,opens:['carpenter apprentice','framer','finish carpenter'],from:['construction','carpentry','framing','drywall','laborer','roofing'],gaps:['carpentry','framing','blueprints'],note:'Charleston-area residential construction is steady work.'},
+ // tech
+ {name:'CompTIA A+',track:'Tech',time:'2–4 months self-study',cost:'~$500 for two exams',pay:60000,high:75000,opens:['IT support specialist','help desk technician','field technician'],from:['developer','web','it','computer','technician','customer service','phone support','troubleshooting','html','javascript'],gaps:['troubleshooting','windows','active directory','help desk','it support','networking'],note:'The standard entry ticket to IT. Hands-on tech backgrounds translate well.'},
+ {name:'CompTIA Network+ / Security+',track:'Tech',time:'2–3 months each',cost:'~$400 each',pay:75000,high:100000,opens:['network technician','systems administrator','junior security analyst'],from:['it','developer','help desk','a+','computer','linux','aws'],gaps:['networking','linux','security','aws','azure','cloud'],note:'Security+ is required for most government and contractor IT jobs.'},
+ {name:'AWS Cloud Practitioner → Solutions Architect Associate',track:'Tech',time:'1–3 months each',cost:'$100 + $150 exams',pay:90000,high:130000,opens:['cloud support associate','junior cloud engineer','DevOps associate'],from:['developer','web','javascript','python','linux','it','react','node'],gaps:['aws','azure','gcp','google cloud','docker','kubernetes','terraform','ci/cd','linux','bash'],note:'Shows up in a huge share of developer postings. Associate-level is the one that moves pay.'},
+ {name:'Google IT Support / Data Analytics / UX certificates',track:'Tech',time:'3–6 months (self-paced)',cost:'~$49/month',pay:55000,high:80000,opens:['IT support','junior data analyst','junior UX designer'],from:['developer','web','design','figma','customer service','excel','marketing'],gaps:['sql','excel','tableau','power bi','data analysis','figma','ui/ux','python'],note:'Low cost, recognized by large employers, and includes job-search support.'},
+ {name:'Salesforce Administrator',track:'Tech / Business',time:'2–4 months',cost:'$200 exam (free Trailhead training)',pay:80000,high:110000,opens:['Salesforce admin','CRM administrator','business systems analyst'],from:['sales','customer service','crm','developer','web','admin','marketing','hubspot'],gaps:['salesforce','crm','hubspot','data entry'],note:'One of the best pay-to-effort ratios for people with sales or support backgrounds.'},
+ {name:'Google Ads + Meta Blueprint + HubSpot certifications',track:'Marketing',time:'2–6 weeks total',cost:'Free',pay:55000,high:85000,opens:['digital marketing specialist','paid media coordinator','marketing associate'],from:['marketing','web','seo','design','sales','social media','developer'],gaps:['google ads','facebook ads','seo','google analytics','hubspot','email marketing','social media','copywriting'],note:'Free, fast, and directly useful to any freelance web work.'},
+ {name:'Project Management: CAPM or Google PM certificate',track:'Business',time:'2–6 months',cost:'$225–300 exam / $49 per month',pay:70000,high:95000,opens:['project coordinator','junior project manager','operations coordinator'],from:['team management','managed a team','team lead','supervising','operations','scheduling','dispatch','owner','founder'],gaps:['project management','agile','scrum','jira','kpis','operations','budgeting'],note:'Turns "I ran a crew" into a credential hiring managers recognize.'},
+ // healthcare quick entry
+ {name:'CNA (Certified Nursing Assistant)',track:'Healthcare',time:'4–12 weeks',cost:'$500–2k (often free via employers)',pay:39000,high:48000,opens:['nursing assistant','patient care technician'],from:['customer service','caregiver','patient care','server','host'],gaps:['patient care','cna','cpr','bls','medical terminology'],note:'Fastest healthcare entry; hospitals often pay for the next step (LPN or RN).'},
+ {name:'EMT-Basic',track:'Healthcare',time:'3–6 months',cost:'$1k–2.5k',pay:40000,high:55000,opens:['EMT','ER technician','firefighter (with fire academy)'],from:['driver','security','cpr','first aid','military','laborer'],gaps:['cpr','bls','first aid','patient care'],note:'Gateway to fire departments and paramedic school, both with pensions.'},
+ {name:'Phlebotomy technician',track:'Healthcare',time:'4–8 weeks',cost:'$700–1.5k',pay:43000,high:52000,opens:['phlebotomist','lab assistant','mobile phlebotomist'],from:['customer service','cna','patient care','retail'],gaps:['phlebotomy','patient care','medical terminology','hipaa'],note:'Short course, steady hospital and lab demand.'},
+ {name:'Pharmacy technician (PTCB)',track:'Healthcare',time:'2–6 months',cost:'$130 exam + training',pay:43000,high:55000,opens:['pharmacy technician','pharmacy tech (hospital)'],from:['retail','cashier','customer service','data entry','inventory'],gaps:['inventory','data entry','medical terminology','hipaa','pos'],note:'Retail chains train on the job and pay for the exam.'},
+ // other fast paths
+ {name:'Real estate license',track:'Sales',time:'2–3 months',cost:'$500–1.5k',pay:56000,high:120000,opens:['real estate agent','leasing agent','property manager'],from:['sales','customer service','marketing','owner','founder','cold calling'],gaps:['sales','cold calling','crm','social media','copywriting'],note:'Commission-based, so income depends on hustle, but a strong network helps a lot.'},
+ {name:'Insurance license (Property & Casualty / Life & Health)',track:'Sales',time:'2–6 weeks',cost:'$200–500',pay:60000,high:90000,opens:['insurance agent','claims adjuster (with adjuster license)','customer service rep (insured)'],from:['sales','customer service','automotive','technician','cold calling','phone support'],gaps:['sales','crm','phone support','cold calling'],note:'Auto techs do well as claims adjusters: they know what damage actually costs.'},
+ {name:'Commercial drone pilot (FAA Part 107)',track:'Tech / Trades',time:'2–4 weeks',cost:'$175 exam',pay:50000,high:90000,opens:['drone operator','inspection pilot','real estate / construction media'],from:['web','design','photography','real estate','construction','roofing','marketing'],gaps:['photography','video','autocad'],note:'Cheap add-on that lets a web or marketing freelancer sell aerial work too.'},
+ {name:'Security guard + armed guard license',track:'Security',time:'1–3 weeks',cost:'$100–400',pay:38000,high:55000,opens:['security officer','armed guard','loss prevention'],from:['security','military','retail','customer service','driver'],gaps:['security','surveillance','access control','loss prevention'],note:'Quick to get; armed and hospital/federal contract posts pay the most.'},
+ {name:'Notary Public + Loan Signing Agent',track:'Business',time:'1–4 weeks',cost:'$100–400',pay:45000,high:80000,opens:['loan signing agent (self-employed)','notary'],from:['real estate','customer service','sales','owner','founder','admin'],gaps:['scheduling','data entry'],note:'Side income that stacks on a day job; strong in active housing markets.'},
+];
+function recommendCerts(rows){
+  const mine=mySkillSet();const myText=[...pastJobs.map(j=>j.title),...mine].join(' ').toLowerCase();
+  const gapCounts={};rows.forEach(r=>r.gaps.forEach(g=>gapCounts[g]=(gapCounts[g]||0)+1));
+  const myPay=parseFloat($('minpay').value)||0;
+  return CERTS.map(c=>{
+    const fit=c.from.filter(f=>myText.includes(f)).length;
+    const demand=c.gaps.reduce((a,g)=>a+(gapCounts[g]||0),0);
+    const have=c.gaps.every(g=>mine.has(g)||[...mine].some(m=>m.includes(g)));
+    const quick=/day|week/.test(c.time)?2:/^[1-6]/.test(c.time)?1:0;
+    const raise=myPay?Math.max(0,c.pay-myPay):c.pay-45000;
+    const score=fit*3+Math.min(demand,10)*2+quick*2+raise/8000-(have?6:0);
+    return {...c,fit,demand,score,have};
+  }).sort((a,b)=>b.score-a.score);
+}
+const fmtK=n=>'$'+Math.round(n/1000)+'k';
+function renderCerts(rows){
+  const el=$('cert-list');if(!el)return;el.innerHTML='';
+  const recs=recommendCerts(rows);const track=$('cert-track').value;
+  const show=recs.filter(c=>track==='all'||c.track.toLowerCase().includes(track)).slice(0,track==='all'?8:30);
+  show.forEach(c=>{
+    const d=document.createElement('div');d.className='cert';
+    d.innerHTML=`<div class="cert-head"><div><b class="cert-name"></b><div class="note cert-track"></div></div><div class="cert-pay"><span class="pay"></span><div class="lbl">typical pay</div></div></div>
+      <div class="cert-meta"><span class="tag t-time"></span><span class="tag t-cost"></span><span class="tag t-fit" hidden></span><span class="tag t-demand" hidden></span></div>
+      <div class="note cert-opens"></div><div class="note cert-note"></div>`;
+    d.querySelector('.cert-name').textContent=c.name;d.querySelector('.cert-track').textContent=c.track;
+    d.querySelector('.pay').textContent=fmtK(c.pay)+'–'+fmtK(c.high);
+    d.querySelector('.t-time').textContent=c.time;d.querySelector('.t-cost').textContent=c.cost;
+    const tf=d.querySelector('.t-fit');if(c.fit){tf.hidden=false;tf.textContent='builds on your background';tf.style.background='var(--accent)';tf.style.color='var(--accent-fg)'}
+    const td=d.querySelector('.t-demand');if(c.demand){td.hidden=false;td.textContent='asked for in '+c.demand+' of your results'}
+    d.querySelector('.cert-opens').textContent='Opens: '+c.opens.join(', ');
+    d.querySelector('.cert-note').textContent=c.note;
+    el.appendChild(d);
+  });
+}
+
+$('cert-track').onchange=()=>renderCerts(window.__rows||[]);
 // ---------- results ----------
 $('sort').onchange=renderResults;$('view').onchange=renderResults;
 $('minpay').addEventListener('input',renderResults);$('loc').addEventListener('input',renderResults);$('extra').addEventListener('input',renderResults);
@@ -567,6 +654,7 @@ function renderResults(){
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
   $('gaps').hidden=!top.length;const gt=$('gap-tags');gt.innerHTML='';
   top.forEach(([g,n])=>{const sp=document.createElement('span');sp.className='tag gap';const a=document.createElement('span');a.textContent=g;const b=document.createElement('b');b.textContent='×'+n;sp.append(a,b);gt.appendChild(sp)});
+  window.__rows=rows;renderCerts(rows);
   $('count').textContent=rows.length?rows.length+' listings':'';
   if(!rows.length){el.innerHTML='<p class="empty">'+(results.length?(view==='new'?'Nothing new since your last search.':view==='saved'?'Nothing saved yet. Tap Save on a listing.':view==='applied'?'Nothing marked applied yet.':'Nothing passes the current filters.'):'Add a past job or two, type what you’re looking for, and search.')+'</p>';return}
   rows.forEach((r,i)=>{
