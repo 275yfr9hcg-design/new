@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com https://remoteok.com https://himalayas.app; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com https://remoteok.com https://himalayas.app https://api.adzuna.com; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Job Scout</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -124,7 +124,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
 
     <section class="panel">
       <h2>Search</h2>
-      <div class="field"><label for="q">Keywords (what you want to find)</label><input id="q" placeholder="web developer, automotive technician"></div>
+      <div class="field"><label for="q">Keywords (what you want to find)</label><input id="q" placeholder="truck driver, dispatcher, automotive technician"></div>
       <div class="row" style="margin-top:8px">
         <div class="field"><label for="loc">Location filter (blank for any)</label><input id="loc" placeholder="Charleston, SC / remote"></div>
         <div class="field"><label for="minpay">Minimum pay ($/yr, blank for none)</label><input id="minpay" type="number" min="0" step="1000" placeholder="45000"></div>
@@ -149,7 +149,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         <div class="field" style="margin-top:8px"><label for="p-desc">Description (paste the whole posting, pay gets read out of it)</label><textarea id="p-desc"></textarea></div>
         <div class="row" style="margin-top:8px"><button class="primary" id="p-add">Add and score</button></div>
       </div>
-      <p class="note" style="margin-top:12px">Sources: Remotive, Jobicy, RemoteOK, Himalayas, The Muse and Arbeitnow (public feeds, mostly remote office and tech work). Try job-title keywords like "web developer" or "customer support". The big boards don't let pages pull their listings, so the buttons below run your search there; paste the good ones back here to score them.</p>
+      <details style="margin-top:12px"><summary class="note">Unlock local, all-industry listings (Adzuna, free key)</summary>
+        <p class="note" style="margin:8px 0">The remote feeds don't carry local trucking, shop or warehouse jobs. Adzuna does, and gives free keys: go to <span style="font-family:var(--mono)">developer.adzuna.com</span>, sign up, and paste your App ID and App Key here. They stay in this browser only.</p>
+        <div class="row"><div class="field"><label for="adz-id">App ID</label><input id="adz-id" autocomplete="off" spellcheck="false"></div><div class="field"><label for="adz-key">App Key</label><input id="adz-key" type="password" autocomplete="off"></div></div>
+      </details>
+      <p class="note" style="margin-top:12px">Sources: Adzuna (needs the free key above) plus Remotive, Jobicy, RemoteOK, Himalayas, The Muse and Arbeitnow (remote office and tech). Separate several searches with commas, like "truck driver, dispatcher, warehouse manager". Leave keywords blank to search your past job titles. The big boards don't let pages pull their listings, so the buttons below run your search there; paste the good ones back here to score them.</p>
     </section>
   </div>
 
@@ -242,7 +246,8 @@ $('imp').onclick=()=>{
 // ---------- résumé import ----------
 const MONTHS='jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december';
 const DATE_RE=new RegExp('((?:'+MONTHS+')\\.?\\s+)?(\\d{4}|present|current|now)\\s*(?:-|–|—|to)\\s*((?:'+MONTHS+')\\.?\\s+)?(\\d{4}|present|current|now)','i');
-const TITLE_WORDS=/\b(technician|engineer|developer|manager|assistant|associate|specialist|analyst|coordinator|director|lead|intern|clerk|cashier|server|cook|driver|mechanic|representative|rep|agent|consultant|designer|administrator|admin|supervisor|operator|nurse|teacher|tutor|sales|support|owner|founder|freelance|contractor|apprentice|installer|laborer|attendant|barista|host|stocker|advisor|officer|programmer|architect)\b/i;
+const HEADER_RE=/^(work|professional|relevant)?\s*(experience|employment|history|education|skills|summary|objective|certifications?|references?|projects?|volunteer(ing)?)\s*:?$/i;
+const TITLE_WORDS=/\b(driver|trucker|dispatcher|warehouse|logistics|foreman|crew|mover|loader|picker|packer|engineer|developer|manager|assistant|associate|specialist|analyst|coordinator|director|lead|intern|clerk|cashier|server|cook|driver|mechanic|representative|rep|agent|consultant|designer|administrator|admin|supervisor|operator|nurse|teacher|tutor|sales|support|owner|founder|freelance|contractor|apprentice|installer|laborer|attendant|barista|host|stocker|advisor|officer|programmer|architect)\b/i;
 function parseResume(text){
   const lines=text.split(/\r?\n/).map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean);
   const jobs=[];const yearNow=new Date().getFullYear();
@@ -251,18 +256,20 @@ function parseResume(text){
     const y1=parseInt(m[2])||yearNow,y2=/^\d{4}$/.test(m[4])?parseInt(m[4]):yearNow;
     const years=Math.max(0.5,Math.round(((y2-y1)||0.5)*2)/2);
     // title: this line minus the dates, or a nearby line that looks like a title
-    const cand=[lines[i].replace(DATE_RE,'').replace(/[|•·—–-]+/g,' ').trim(),lines[i-1]||'',lines[i+1]||'',lines[i-2]||''].filter(Boolean);
+    const cand=[lines[i].replace(DATE_RE,'').replace(/[•·]+/g,' ').replace(/^[\s,|—–-]+|[\s,|—–-]+$/g,'').trim(),lines[i-1]||'',lines[i+1]||'',lines[i-2]||''].filter(c=>c&&!HEADER_RE.test(c));
     let title=cand.find(c=>TITLE_WORDS.test(c)&&c.length<80)||cand.find(c=>c.length>2&&c.length<60&&!/@|\d{3}[-.)]\d{3}/.test(c))||'';
-    title=title.split(/\s+(?:—|–|\||@|\bat\b)\s+|,\s+/)[0].trim().slice(0,100);
+    title=title.split(/\s*(?:—|–|\||@|\bat\b)\s*|,\s*/)[0].replace(/[\s,|—–-]+$/,'').trim().slice(0,100);
     if(!title)continue;
     // skills: bullet lines that follow until the next dated line
     const dut=[];for(let k=i+1;k<Math.min(lines.length,i+14)&&!DATE_RE.test(lines[k]);k++)dut.push(lines[k]);
-    const sk=new Set(skillsIn(dut.join(' ')));
+    const dtext=dut.join(' ');const sk=new Set(skillsIn(dtext));
+    if(/\b(managed|supervised|led|oversaw|trained|hired)\b[^.]{0,40}\b(team|crew|staff|employees|drivers|technicians|people|\d+)/i.test(dtext))sk.add('team management');
+    if(/\b(truck|trucking|cdl|freight|haul|routes?|deliver)/i.test(dtext+' '+title))sk.add('trucking');
     jobs.push({title,years,skills:[...sk]});
   }
   // dedupe by title
   const seen=new Set();const out=jobs.filter(j=>{const k=j.title.toLowerCase();if(seen.has(k))return false;seen.add(k);return true}).slice(0,12);
-  const allSkills=[...new Set(skillsIn(text))];
+  const allSkills=[...new Set([...skillsIn(text),...out.flatMap(j=>j.skills)])];
   return {jobs:out,skills:allSkills};
 }
 async function readPdf(file){
@@ -317,7 +324,7 @@ $('resume-apply').onclick=()=>{
 };
 
 // ---------- skill vocabulary (for gap detection) ----------
-const SKILLS=('javascript,typescript,html,css,react,vue,angular,svelte,next.js,node.js,node,express,python,django,flask,fastapi,java,spring,kotlin,swift,c#,.net,c++,go,rust,ruby,rails,php,laravel,wordpress,shopify,webflow,sql,mysql,postgresql,postgres,mongodb,redis,graphql,rest api,aws,azure,gcp,google cloud,docker,kubernetes,terraform,linux,bash,git,github,ci/cd,jenkins,figma,photoshop,illustrator,adobe,ui/ux,ux,seo,google analytics,google ads,facebook ads,hubspot,salesforce,crm,excel,power bi,tableau,data analysis,machine learning,llm,openai,tensorflow,pytorch,pandas,jira,agile,scrum,project management,customer service,sales,cold calling,copywriting,content writing,social media,email marketing,quickbooks,bookkeeping,accounting,payroll,recruiting,zendesk,intercom,wix,squarespace,tailwind,bootstrap,sass,jquery,unity,unreal,firebase,supabase,stripe,twilio,zapier,notion,slack,microsoft office,powerpoint,outlook,ase,automotive,diagnostics,brake,oil change,alignment,tire,forklift,cdl,osha,hvac,electrical,plumbing,welding,cnc,autocad,solidworks,bilingual,spanish,phone support,data entry,typing,cash handling,pos,inventory,scheduling,dispatch').split(',');
+const SKILLS=('javascript,typescript,html,css,react,vue,angular,svelte,next.js,node.js,node,express,python,django,flask,fastapi,java,spring,kotlin,swift,c#,.net,c++,go,rust,ruby,rails,php,laravel,wordpress,shopify,webflow,sql,mysql,postgresql,postgres,mongodb,redis,graphql,rest api,aws,azure,gcp,google cloud,docker,kubernetes,terraform,linux,bash,git,github,ci/cd,jenkins,figma,photoshop,illustrator,adobe,ui/ux,ux,seo,google analytics,google ads,facebook ads,hubspot,salesforce,crm,excel,power bi,tableau,data analysis,machine learning,llm,openai,tensorflow,pytorch,pandas,jira,agile,scrum,project management,customer service,sales,cold calling,copywriting,content writing,social media,email marketing,quickbooks,bookkeeping,accounting,payroll,recruiting,zendesk,intercom,wix,squarespace,tailwind,bootstrap,sass,jquery,unity,unreal,firebase,supabase,stripe,twilio,zapier,notion,slack,microsoft office,powerpoint,outlook,ase,automotive,diagnostics,brake,oil change,alignment,tire,forklift,cdl,osha,hvac,electrical,plumbing,welding,cnc,autocad,solidworks,bilingual,spanish,phone support,data entry,typing,cash handling,pos,inventory,scheduling,dispatch,trucking,logistics,cdl-a,cdl-b,class a,class b,tanker,hazmat,flatbed,dry van,reefer,otr,regional,local routes,eld,dot,route planning,freight,ltl,ftl,shipping,receiving,warehouse,pallet jack,loading,unloading,delivery,box truck,straight truck,fleet,fleet management,supply chain,procurement,purchasing,3pl,dispatching,load board,management,team management,managed a team,team lead,supervising,supervision,training,hiring,onboarding,coaching,scheduling staff,shift lead,operations,p&l,budgeting,kpis,quality control,safety,safety compliance,forklift certified,reach truck,order picking,rf scanner,cycle counts,assembly,machine operation,maintenance,preventive maintenance,troubleshooting,hand tools,power tools,blueprints,carpentry,framing,drywall,painting,roofing,landscaping,concrete,masonry,engine repair,transmission,suspension,steering,electrical systems,heating and air,scan tool,state inspection,tune-up,fluid service,battery,food safety,servsafe,line cook,prep,bartending,barista,hosting,cash register,upselling,merchandising,loss prevention,stocking,first aid,cpr,bls,cna,patient care,phlebotomy,medical terminology,hipaa,security,guard card,surveillance,access control').split(',');
 function skillsIn(text){const t=(' '+(text||'').toLowerCase().replace(/[^a-z0-9+#./ ]/g,' ')+' ').replace(/(change|inspection|rotation|repair)s\b/g,'$1');return SKILLS.filter(s=>t.includes(' '+s+' ')||t.includes(' '+s+',')||t.includes(' '+s+'.')||t.includes('/'+s+' ')||t.includes(' '+s+'/'))}
 function mySkillSet(){return new Set([...pastJobs.flatMap(j=>j.skills),...splitList($('extra').value)].map(s=>s.toLowerCase()))}
 const ALIAS={postgres:'postgresql',node:'node.js',gcp:'google cloud',ux:'ui/ux'};
@@ -395,9 +402,14 @@ const sources={
     return (d.jobs||[]).map(j=>({id:'jc'+j.id,title:j.jobTitle,company:j.companyName,location:'Remote · '+(j.jobGeo||'Anywhere'),url:j.url,description:strip(j.jobDescription||j.jobExcerpt),pay:(j.annualSalaryMin&&j.annualSalaryMax&&j.salaryCurrency==='USD')?(+j.annualSalaryMin+ +j.annualSalaryMax)/2:parsePay(j.jobDescription),date:j.pubDate,source:'Jobicy'}))},
   async remoteok(q){const d=await fetchJSON('https://remoteok.com/api');
     return (Array.isArray(d)?d:[]).filter(j=>j&&j.position).map(j=>({id:'ro'+j.id,title:j.position,company:j.company,location:'Remote · '+(j.location||'Anywhere'),url:j.url,description:strip(j.description)+' '+(j.tags||[]).join(' '),pay:(j.salary_min&&j.salary_max)?(+j.salary_min+ +j.salary_max)/2:parsePay(j.description),date:j.date,source:'RemoteOK'}))},
+  async adzuna(q){const k=adzKey();if(!k)throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();let out=[];for(let p=1;p<=2;p++){const d=await fetchJSON('https://api.adzuna.com/v1/api/jobs/us/search/'+p+'?app_id='+encodeURIComponent(k.id)+'&app_key='+encodeURIComponent(k.key)+'&results_per_page=50&what='+encodeURIComponent(q)+(l?'&where='+encodeURIComponent(l)+'&distance=50':'')+'&content-type=application/json');out=out.concat(d.results||[]);if((d.results||[]).length<50)break}
+    return out.map(j=>({id:'az'+j.id,title:j.title,company:j.company&&j.company.display_name,location:j.location&&j.location.display_name,url:j.redirect_url,description:strip(j.description),pay:(j.salary_min&&j.salary_max)?(j.salary_min+j.salary_max)/2:parsePay(j.description),date:j.created,source:'Adzuna'}))},
   async himalayas(q){const d=await fetchJSON('https://himalayas.app/jobs/api?limit=100');
     return (d.jobs||[]).map((j,i)=>({id:'hi'+(j.applicationLink||j.title+i),title:j.title,company:j.companyName,location:'Remote · '+((j.locationRestrictions||[]).join(', ')||'Anywhere'),url:j.applicationLink,description:strip(j.description),pay:(j.minSalary&&j.maxSalary)?(+j.minSalary+ +j.maxSalary)/2:parsePay(j.description),date:j.pubDate?new Date(j.pubDate*1000).toISOString():'',source:'Himalayas'}))}
 };
+function adzKey(){const id=(store.get('js.adz_id','')||'').trim(),key=(store.get('js.adz_key','')||'').trim();return /^[a-f0-9]{8}$/i.test(id)&&/^[a-f0-9]{32}$/i.test(key)?{id,key}:null}
+$('adz-id').value=store.get('js.adz_id','');$('adz-key').value=store.get('js.adz_key','');
+$('adz-id').addEventListener('input',e=>store.set('js.adz_id',e.target.value.trim()));$('adz-key').addEventListener('input',e=>store.set('js.adz_key',e.target.value.trim()));
 // Boards that don't allow pages to pull listings: hand the search off to them instead.
 const HANDOFF=[
   ['Indeed',(q,l)=>'https://www.indeed.com/jobs?q='+q+(l?'&l='+l:'')],
@@ -419,7 +431,8 @@ $('q').addEventListener('input',renderHandoff);$('loc').addEventListener('input'
 function relevant(j,q){
   const words=tokens(q);if(!words.length)return true;
   const title=(j.title||'').toLowerCase(),body=(j.description||'').toLowerCase();
-  return words.some(w=>title.includes(w))||words.every(w=>body.includes(w));
+  const terms=q.split(/\s*,\s*/).filter(Boolean);
+  return terms.some(t=>{const tw=tokens(t);return tw.length&&(tw.every(w=>title.includes(w))||tw.every(w=>body.includes(w)))})||words.some(w=>title.includes(w));
 }
 const US=/\b(usa?|u\.s\.a?|united states|america|remote|anywhere|worldwide|global|[a-z ]+,\s?(al|ak|az|ar|ca|co|ct|de|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy|dc)\b)/i;
 function inRegion(j){
@@ -435,10 +448,12 @@ function strip(html){const doc=new DOMParser().parseFromString(String(html||''),
 function safeUrl(u){try{const x=new URL(String(u||''));return (x.protocol==='https:'||x.protocol==='http:')?x.href:''}catch(e){return ''}}
 function clean(j){return {...j,title:String(j.title||'').slice(0,200),company:String(j.company||'').slice(0,120),location:String(j.location||'').slice(0,160),url:safeUrl(j.url),pay:(typeof j.pay==='number'&&isFinite(j.pay))?j.pay:null}}
 $('search').onclick=async()=>{
-  const q=$('q').value.trim();if(!q){$('q').focus();return}
+  let q=$('q').value.trim();
+  if(!q){q=pastJobs.map(j=>j.title).slice(0,3).join(', ');if(!q){$('q').focus();return}$('q').value=q;store.set('js.q',q);renderHandoff()}
   setStatus('Searching…');$('search').disabled=true;
   const got=[],errs=[];
-  await Promise.all(Object.entries(sources).map(async([n,f])=>{try{got.push(...await f(q))}catch(e){errs.push(n)}}));
+  const terms=q.split(/\s*,\s*/).filter(Boolean).slice(0,4);
+  await Promise.all(Object.entries(sources).map(async([n,f])=>{let ok=false;for(const t of terms){try{got.push(...await f(t));ok=true}catch(e){}}if(!ok&&!(n==='adzuna'&&!adzKey()))errs.push(n)}));
   $('search').disabled=false;
   const seen=new Set(results.map(r=>r.id));
   const kept=got.map(clean).filter(j=>relevant(j,q)&&inRegion(j));
