@@ -11,19 +11,23 @@
 <style>
 /* Layout: profile rail on top (stacks), results as a sortable ledger below. */
 :root{
-  --bg:#f6f4ee; --panel:#ffffff; --fg:#1d1f1a; --muted:#6b6f63; --line:#dcd9cf;
-  --accent:#1f5a3a; --accent-fg:#ffffff; --good:#1f7a3f; --warn:#b26a00; --bad:#a53b2a; --soft:#eef3ec;
+  --bg:#eef0f4; --panel:rgba(255,255,255,.55); --panel-solid:#ffffff; --fg:#111318; --muted:#5f6675; --line:rgba(20,24,32,.1);
+  --accent:#0a7a52; --accent-fg:#ffffff; --good:#0a7a52; --warn:#b26a00; --bad:#c0392b; --soft:rgba(10,122,82,.1);
+  --glow1:rgba(10,122,82,.22); --glow2:rgba(80,120,255,.18); --glow3:rgba(255,170,90,.18); --input:rgba(255,255,255,.6);
   --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#15171a; --panel:#1e2125; --fg:#ebe9e1; --muted:#9a9e92; --line:#33373c;
-  --accent:#6fc192; --accent-fg:#0f1a13; --good:#6fc192; --warn:#e3a94a; --bad:#e8826f; --soft:#22302a; color-scheme:dark } }
+  --bg:#0d0f14; --panel:rgba(255,255,255,.06); --panel-solid:#171a21; --fg:#eceef3; --muted:#9aa1b1; --line:rgba(255,255,255,.1);
+  --accent:#5fd3a0; --accent-fg:#06130d; --good:#5fd3a0; --warn:#e3a94a; --bad:#ef8a7a; --soft:rgba(95,211,160,.14);
+  --glow1:rgba(95,211,160,.18); --glow2:rgba(90,120,255,.16); --glow3:rgba(255,150,80,.1); --input:rgba(255,255,255,.07); color-scheme:dark } }
 :root[data-theme="dark"]{
-  --bg:#15171a; --panel:#1e2125; --fg:#ebe9e1; --muted:#9a9e92; --line:#33373c;
-  --accent:#6fc192; --accent-fg:#0f1a13; --good:#6fc192; --warn:#e3a94a; --bad:#e8826f; --soft:#22302a; color-scheme:dark }
+  --bg:#0d0f14; --panel:rgba(255,255,255,.06); --panel-solid:#171a21; --fg:#eceef3; --muted:#9aa1b1; --line:rgba(255,255,255,.1);
+  --accent:#5fd3a0; --accent-fg:#06130d; --good:#5fd3a0; --warn:#e3a94a; --bad:#ef8a7a; --soft:rgba(95,211,160,.14);
+  --glow1:rgba(95,211,160,.18); --glow2:rgba(90,120,255,.16); --glow3:rgba(255,150,80,.1); --input:rgba(255,255,255,.07); color-scheme:dark }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);position:relative;min-height:100vh;
+  background-image:radial-gradient(900px 600px at 10% -10%,var(--glow1),transparent 60%),radial-gradient(800px 600px at 100% 20%,var(--glow2),transparent 60%),radial-gradient(700px 500px at 30% 110%,var(--glow3),transparent 60%);background-attachment:fixed;
   padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .wrap{max-width:1080px;margin:0 auto;display:grid;gap:20px}
 h1{font-size:1.5rem;margin:0;font-weight:600;letter-spacing:-.01em}
@@ -31,35 +35,36 @@ h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mu
 p{margin:0}
 .sub{color:var(--muted);font-size:.9rem}
 header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 10px 30px rgba(0,0,0,.06)}
 .grid{display:grid;gap:16px;grid-template-columns:1fr 1fr}
 @media (max-width:720px){.grid{grid-template-columns:1fr}}
 label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}
-input,textarea,select{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+input,textarea,select{width:100%;font:inherit;color:var(--fg);background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px 12px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 textarea{min-height:88px;resize:vertical}
 input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .row>*{flex:1 1 140px;min-width:0}
 .field{display:grid;gap:2px}
-button{font:inherit;font-weight:500;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:8px 14px;cursor:pointer}
-button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button{font:inherit;font-weight:500;border:1px solid var(--line);background:var(--input);color:var(--fg);border-radius:999px;padding:9px 16px;cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:transform .12s ease,background .12s ease}
+button:active{transform:scale(.97)}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent;box-shadow:0 6px 18px rgba(10,122,82,.25)}
 button.small{padding:4px 10px;font-size:.82rem}
 .jobs-list{display:grid;gap:8px;margin-top:8px}
-.job-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:.9rem}
+.job-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.9rem}
 .job-row b{font-weight:600}
 .job-row .meta{color:var(--muted);font-size:.82rem;font-family:var(--mono)}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .toolbar .left,.toolbar .right{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .status{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
 .ledger{display:grid;gap:10px}
-.card{display:grid;grid-template-columns:1fr auto;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
-.card.top{border-left:4px solid var(--accent)}
+.card{display:grid;grid-template-columns:1fr auto;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px 18px;backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 10px 30px rgba(0,0,0,.06)}
+.card.top{box-shadow:0 0 0 1.5px var(--accent) inset,0 10px 30px rgba(0,0,0,.08)}
 .card .title{font-weight:600;font-size:1.02rem}
 .card .title a{color:inherit;text-decoration:none}
 .card .title a:hover{text-decoration:underline}
 .card .co{color:var(--muted);font-size:.9rem}
 .card .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.tag{font-family:var(--mono);font-size:.74rem;padding:2px 7px;border-radius:4px;background:var(--soft);color:var(--fg);white-space:nowrap}
+.tag{font-family:var(--mono);font-size:.74rem;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--fg);white-space:nowrap}
 .tag.gap{display:inline-flex;gap:6px;align-items:baseline}.tag.gap b{font-weight:500;color:var(--muted)}
 .tag.src{background:transparent;border:1px solid var(--line);color:var(--muted)}
 .nums{display:grid;gap:8px;text-align:right;min-width:120px}
@@ -76,7 +81,7 @@ button.small{padding:4px 10px;font-size:.82rem}
 .why{font-size:.82rem;color:var(--muted);margin-top:8px}
 .why span{font-family:var(--mono)}
 details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8px}
-.desc{font-size:.88rem;max-height:260px;overflow:auto;margin-top:8px;padding:10px;background:var(--bg);border-radius:6px;white-space:pre-wrap}
+.desc{font-size:.88rem;max-height:260px;overflow:auto;margin-top:8px;padding:12px;background:var(--input);border-radius:12px;white-space:pre-wrap}
 .empty{color:var(--muted);text-align:center;padding:32px 12px}
 .note{font-size:.82rem;color:var(--muted)}
 @media (max-width:560px){.card{grid-template-columns:1fr}.nums{text-align:left;grid-auto-flow:column;justify-content:start;gap:20px}}
@@ -96,7 +101,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
   <div class="grid">
     <section class="panel">
       <h2>Your past jobs</h2>
-      <div class="panel" style="padding:12px;margin-bottom:12px;background:var(--bg)">
+      <div style="padding:12px;margin-bottom:12px;background:var(--input);border:1px solid var(--line);border-radius:14px">
         <label for="resume">Start from your résumé (PDF or .txt, read on this device only)</label>
         <div class="row"><input id="resume" type="file" accept=".pdf,.txt,application/pdf,text/plain" style="padding:6px"></div>
         <p class="note" id="resume-status" style="margin-top:6px"></p>
@@ -182,9 +187,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
         </select>
         <button class="small" id="hide-nopay">Hide no-pay listings</button>
         <button class="small" id="clear">Clear results</button>
+        <button class="small primary" id="more" hidden>Load 50 more from Adzuna</button>
       </div>
     </div>
-    <p id="banner" hidden style="margin:10px 0;padding:10px 12px;border:1px solid var(--bad);border-radius:6px;color:var(--bad);font-size:.9rem"></p>
+    <p id="banner" hidden style="margin:10px 0;padding:10px 12px;border:1px solid var(--bad);border-radius:14px;color:var(--bad);font-size:.9rem"></p>
     <div id="gaps" hidden class="panel" style="margin:10px 0;padding:12px 14px">
       <h2 style="margin-bottom:6px">Skills that would boost you most</h2>
       <p class="note">Skills these listings ask for that aren't in your profile, ranked by how many postings want them. Learn one, add it above, and watch the scores move.</p>
@@ -205,7 +211,7 @@ let hideNoPay=false;
 let tracker=store.get('js.tracker',{});   // id -> {saved:bool, applied:'YYYY-MM-DD'|null}
 if(!tracker||typeof tracker!=='object')tracker={};
 let seenIds=new Set((store.get('js.seen',[])||[]).filter(x=>typeof x==='string'));
-let fresh=new Set();
+let fresh=new Set();let adzMore=0,adzLastQ='';
 ['q','loc','minpay','extra','region'].forEach(id=>{$(id).value=store.get('js.'+id,'');$(id).addEventListener('input',()=>store.set('js.'+id,$(id).value))});
 
 // ---------- past jobs ----------
@@ -405,7 +411,7 @@ const sources={
     return (d.jobs||[]).map(j=>({id:'jc'+j.id,title:j.jobTitle,company:j.companyName,location:'Remote · '+(j.jobGeo||'Anywhere'),url:j.url,description:strip(j.jobDescription||j.jobExcerpt),pay:(j.annualSalaryMin&&j.annualSalaryMax&&j.salaryCurrency==='USD')?(+j.annualSalaryMin+ +j.annualSalaryMax)/2:parsePay(j.jobDescription),date:j.pubDate,source:'Jobicy'}))},
   async remoteok(q){const d=await fetchJSON('https://remoteok.com/api');
     return (Array.isArray(d)?d:[]).filter(j=>j&&j.position).map(j=>({id:'ro'+j.id,title:j.position,company:j.company,location:'Remote · '+(j.location||'Anywhere'),url:j.url,description:strip(j.description)+' '+(j.tags||[]).join(' '),pay:(j.salary_min&&j.salary_max)?(+j.salary_min+ +j.salary_max)/2:parsePay(j.description),date:j.date,source:'RemoteOK'}))},
-  async adzuna(q){const k=adzKey();if(!k)throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();let out=[];for(let p=1;p<=1;p++){store.set('js.adz_calls',(store.get('js.adz_calls',0)|0)+1);adzUsed();const d=await fetchJSON('https://api.adzuna.com/v1/api/jobs/us/search/'+p+'?app_id='+encodeURIComponent(k.id)+'&app_key='+encodeURIComponent(k.key)+'&results_per_page=50&what='+encodeURIComponent(q)+(l?'&where='+encodeURIComponent(l)+'&distance=50':'')+'&content-type=application/json');out=out.concat(d.results||[]);if((d.results||[]).length<50)break}
+  async adzuna(q,page){const k=adzKey();if(!k)throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();let out=[];const p=page||1;{store.set('js.adz_calls',(store.get('js.adz_calls',0)|0)+1);adzUsed();const d=await fetchJSON('https://api.adzuna.com/v1/api/jobs/us/search/'+p+'?app_id='+encodeURIComponent(k.id)+'&app_key='+encodeURIComponent(k.key)+'&results_per_page=50&what='+encodeURIComponent(q)+(l?'&where='+encodeURIComponent(l)+'&distance=50':'')+'&content-type=application/json');out=out.concat(d.results||[]);adzMore=(d.results||[]).length>=50?p+1:0;adzLastQ=q}
     return out.map(j=>({id:'az'+j.id,title:j.title,company:j.company&&j.company.display_name,location:j.location&&j.location.display_name,url:j.redirect_url,description:strip(j.description),pay:(j.salary_min&&j.salary_max)?(j.salary_min+j.salary_max)/2:parsePay(j.description),date:j.created,source:'Adzuna'}))},
   async jooble(q){const k=K('jooble-key');if(!/^[a-f0-9-]{20,}$/i.test(k))throw new Error('no key');const l=$('loc').value.trim().split('/')[0].trim();
     const r=await fetch('https://jooble.org/api/'+encodeURIComponent(k),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keywords:q,location:l,page:1})});if(!r.ok)throw new Error(r.status);const d=await r.json();
@@ -485,7 +491,16 @@ $('search').onclick=async()=>{
     ?'The job feeds could not be reached. This file is opened directly from your device, and phone browsers block local files from calling other websites. Put it on a web host (any https link) and search will work, or use "Paste a listing" to score jobs you copy from Indeed.'
     :'The job feeds could not be reached right now (no network, or the sites are down). Try again in a minute, or paste a listing to score it.'}
   else b.hidden=true;
+  $('more').hidden=!adzMore;
   renderResults();
+};
+$('more').onclick=async()=>{
+  if(!adzMore)return;const b=$('more');b.disabled=true;b.textContent='Loading…';
+  try{const got=(await sources.adzuna(adzLastQ,adzMore)).map(clean).filter(j=>relevant(j,adzLastQ)&&inRegion(j));
+    const seen=new Set(results.map(r=>r.id));let n=0;got.forEach(j=>{if(!seen.has(j.id)){seen.add(j.id);results.push(j);fresh.add(j.id);n++}});
+    store.set('js.results',results);setStatus(n+' more added from Adzuna');renderResults()}
+  catch(e){setStatus('Adzuna did not return more (limit reached or network).');adzMore=0}
+  b.disabled=false;b.textContent='Load 50 more from Adzuna';b.hidden=!adzMore;
 };
 function setStatus(s){$('status').textContent=s}
 
@@ -505,6 +520,31 @@ $('hide-nopay').onclick=e=>{hideNoPay=!hideNoPay;e.target.textContent=hideNoPay?
 // Clear keeps anything you saved or applied to.
 $('clear').onclick=()=>{results=results.filter(j=>tracker[j.id]&&(tracker[j.id].saved||tracker[j.id].applied));fresh=new Set();store.set('js.results',results);renderResults()};
 const fmt=n=>'$'+Math.round(n/1000)+'k';
+// Cover-letter helper: three strongest overlaps between the posting and the profile, written as a short paragraph.
+function coverLetter(j){
+  const mine=mySkillSet();const want=skillsIn(j.title+' '+j.description);
+  const hits=want.filter(w=>mine.has(w)||[...mine].some(m=>m.includes(w)||w.includes(m)));
+  const PRETTY={cdl:'a CDL','class a':'a Class A license','class b':'a Class B license',pos:'POS systems',dot:'DOT compliance',ase:'ASE certification',html:'HTML',css:'CSS',sql:'SQL',seo:'SEO',crm:'CRM tools','ci/cd':'CI/CD',aws:'AWS',gcp:'Google Cloud',hvac:'HVAC',cnc:'CNC machines',cpr:'CPR',bls:'BLS',cna:'CNA work',osha:'OSHA standards',ltl:'LTL freight',otr:'OTR routes',eld:'ELD logs',hipaa:'HIPAA',javascript:'JavaScript',typescript:'TypeScript',php:'PHP',wordpress:'WordPress',react:'React',python:'Python',git:'Git',figma:'Figma'};
+  let keys=[...new Set(hits.map(h=>ALIAS[h]||h))];
+  if(keys.includes('cdl')&&(keys.includes('class a')||keys.includes('class b'))){const c=keys.includes('class a')?'Class A':'Class B';keys=keys.filter(k=>k!=='cdl'&&k!=='class a'&&k!=='class b');keys.unshift('a '+c+' CDL')}
+  const uniq=keys.slice(0,3).map(k=>PRETTY[k]||k);
+  const title=(j.title||'this role').replace(/\s*\(.*?\)\s*/g,' ').trim();
+  const co=j.company&&j.company!=='—'?j.company:'your team';
+  const best=pastJobs.slice().sort((a,b)=>(b.years||0)-(a.years||0))[0];
+  const yrs=pastJobs.reduce((a,p)=>a+(p.years||0),0);
+  const relevantJob=pastJobs.find(p=>tokens(p.title).some(w=>title.toLowerCase().includes(w)))||best;
+  let out=`I'm writing to apply for the ${title} position at ${co}.`;
+  if(relevantJob)out+=` In my ${relevantJob.years?relevantJob.years+(relevantJob.years===1?' year':' years')+' as ':'time as '}${relevantJob.title}, I `;
+  else out+=' In my previous roles, I ';
+  if(uniq.length>=2)out+=`worked hands-on with ${uniq.slice(0,-1).join(', ')} and ${uniq[uniq.length-1]}, which your posting calls out directly.`;
+  else if(uniq.length===1)out+=`worked directly with ${uniq[0]}, which your posting calls out.`;
+  else out+='built the kind of dependable, hands-on experience this role asks for.';
+  if(yrs>=1&&pastJobs.length>1)out+=` Across ${Math.round(yrs)} years and ${pastJobs.length} roles, I've been the person who shows up, learns fast, and takes ownership of the work in front of me.`;
+  const other=[...mine].filter(m=>!hits.includes(m)&&m.length>3&&!/^(oil change|brake|tire|alignment)$/.test(m)||false).filter(m=>relevantJob&&relevantJob.skills.includes(m)&&!hits.includes(m)).slice(0,2).map(k=>PRETTY[k]||k);
+  if(other.length)out+=` I also bring ${other.join(' and ')} to the table.`;
+  out+=` I'd welcome the chance to talk about how I can contribute at ${co}.`;
+  return out;
+}
 const hourly=n=>'$'+Math.round(n/2080)+'/hr';
 function setTrack(id,patch){tracker[id]={...(tracker[id]||{saved:false,applied:null}),...patch};store.set('js.tracker',tracker)}
 function renderResults(){
@@ -540,7 +580,8 @@ function renderResults(){
       <div class="why"></div>
       <div class="why gap"></div>
       <details><summary>Posting text</summary><div class="desc"></div></details>
-      <div class="row" style="margin-top:10px;gap:6px"><button class="small b-save" style="flex:0 0 auto"></button><button class="small b-app" style="flex:0 0 auto"></button></div>
+      <div class="row" style="margin-top:10px;gap:6px"><button class="small b-save" style="flex:0 0 auto"></button><button class="small b-app" style="flex:0 0 auto"></button><button class="small b-cl" style="flex:0 0 auto">Write cover note</button></div>
+      <div class="cl" hidden style="margin-top:10px"><textarea class="cl-text" style="min-height:120px"></textarea><div class="row" style="margin-top:6px;gap:6px"><button class="small cl-copy" style="flex:0 0 auto">Copy</button><span class="note" style="align-self:center">Edit it to sound like you before sending.</span></div></div>
     </div>
     <div class="nums">
       <div class="pay ${j.pay?'':'none'}" ${low?'style="color:var(--bad)"':''}>${j.pay?fmt(j.pay)+'/yr <span class="note" style="font-size:.8rem;'+(low?'color:var(--bad)':'')+'">'+hourly(j.pay)+'</span>'+(low?'<div class="note" style="font-size:.74rem;color:var(--bad)">below your minimum</div>':''):'pay not listed'}</div>
@@ -554,6 +595,9 @@ function renderResults(){
     c.querySelector('.desc').textContent=j.description;
     const at=c.querySelector('.applied-tag');if(at)at.textContent='Applied '+t.applied;
     const bs=c.querySelector('.b-save');bs.textContent=t.saved?'★ Saved':'☆ Save';bs.onclick=()=>{setTrack(j.id,{saved:!t.saved});renderResults()};
+    const bc=c.querySelector('.b-cl'),clBox=c.querySelector('.cl'),clText=c.querySelector('.cl-text');
+    bc.onclick=()=>{clBox.hidden=!clBox.hidden;if(!clBox.hidden&&!clText.value)clText.value=coverLetter(j)};
+    c.querySelector('.cl-copy').onclick=async e=>{try{await navigator.clipboard.writeText(clText.value);e.target.textContent='Copied';setTimeout(()=>e.target.textContent='Copy',1500)}catch(x){clText.select()}};
     const ba=c.querySelector('.b-app');ba.textContent=t.applied?'Undo applied':'Mark applied';ba.onclick=()=>{setTrack(j.id,{applied:t.applied?null:new Date().toISOString().slice(0,10),saved:true});renderResults()};
     el.appendChild(c);
   });
