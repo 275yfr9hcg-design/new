@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com https://remoteok.com https://himalayas.app; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com https://jobicy.com https://remoteok.com https://himalayas.app; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Job Scout</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: profile rail on top (stacks), results as a sortable ledger below. */
@@ -95,6 +96,17 @@ details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8p
   <div class="grid">
     <section class="panel">
       <h2>Your past jobs</h2>
+      <div class="panel" style="padding:12px;margin-bottom:12px;background:var(--bg)">
+        <label for="resume">Start from your résumé (PDF or .txt, read on this device only)</label>
+        <div class="row"><input id="resume" type="file" accept=".pdf,.txt,application/pdf,text/plain" style="padding:6px"></div>
+        <p class="note" id="resume-status" style="margin-top:6px"></p>
+        <div id="resume-out" hidden style="margin-top:10px">
+          <p class="note" style="margin-bottom:6px">Here's what we found. Uncheck anything wrong, fix the text, then add.</p>
+          <div id="resume-jobs" class="jobs-list"></div>
+          <div class="field" style="margin-top:8px"><label for="resume-skills">Skills found (comma-separated, edit freely)</label><textarea id="resume-skills"></textarea></div>
+          <div class="row" style="margin-top:8px"><button class="primary" id="resume-apply">Add to my profile</button><button id="resume-cancel">Discard</button></div>
+        </div>
+      </div>
       <div class="row">
         <div class="field"><label for="pj-title">Job title</label><input id="pj-title" placeholder="Senior Technician"></div>
         <div class="field"><label for="pj-years">Years</label><input id="pj-years" type="number" min="0" step="0.5" placeholder="2"></div>
@@ -227,9 +239,86 @@ $('imp').onclick=()=>{
   catch(e){$('imp').textContent='That code is not valid';setTimeout(()=>$('imp').textContent='Paste profile code',2000)}
 };
 
+// ---------- résumé import ----------
+const MONTHS='jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december';
+const DATE_RE=new RegExp('((?:'+MONTHS+')\\.?\\s+)?(\\d{4}|present|current|now)\\s*(?:-|–|—|to)\\s*((?:'+MONTHS+')\\.?\\s+)?(\\d{4}|present|current|now)','i');
+const TITLE_WORDS=/\b(technician|engineer|developer|manager|assistant|associate|specialist|analyst|coordinator|director|lead|intern|clerk|cashier|server|cook|driver|mechanic|representative|rep|agent|consultant|designer|administrator|admin|supervisor|operator|nurse|teacher|tutor|sales|support|owner|founder|freelance|contractor|apprentice|installer|laborer|attendant|barista|host|stocker|advisor|officer|programmer|architect)\b/i;
+function parseResume(text){
+  const lines=text.split(/\r?\n/).map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const jobs=[];const yearNow=new Date().getFullYear();
+  for(let i=0;i<lines.length;i++){
+    const m=DATE_RE.exec(lines[i]);if(!m)continue;
+    const y1=parseInt(m[2])||yearNow,y2=/^\d{4}$/.test(m[4])?parseInt(m[4]):yearNow;
+    const years=Math.max(0.5,Math.round(((y2-y1)||0.5)*2)/2);
+    // title: this line minus the dates, or a nearby line that looks like a title
+    const cand=[lines[i].replace(DATE_RE,'').replace(/[|•·—–-]+/g,' ').trim(),lines[i-1]||'',lines[i+1]||'',lines[i-2]||''].filter(Boolean);
+    let title=cand.find(c=>TITLE_WORDS.test(c)&&c.length<80)||cand.find(c=>c.length>2&&c.length<60&&!/@|\d{3}[-.)]\d{3}/.test(c))||'';
+    title=title.split(/\s+(?:—|–|\||@|\bat\b)\s+|,\s+/)[0].trim().slice(0,100);
+    if(!title)continue;
+    // skills: bullet lines that follow until the next dated line
+    const dut=[];for(let k=i+1;k<Math.min(lines.length,i+14)&&!DATE_RE.test(lines[k]);k++)dut.push(lines[k]);
+    const sk=new Set(skillsIn(dut.join(' ')));
+    jobs.push({title,years,skills:[...sk]});
+  }
+  // dedupe by title
+  const seen=new Set();const out=jobs.filter(j=>{const k=j.title.toLowerCase();if(seen.has(k))return false;seen.add(k);return true}).slice(0,12);
+  const allSkills=[...new Set(skillsIn(text))];
+  return {jobs:out,skills:allSkills};
+}
+async function readPdf(file){
+  const lib=window.pdfjsLib||(await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs'));
+  lib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+  const pdf=await lib.getDocument({data:await file.arrayBuffer(),isEvalSupported:false}).promise;
+  let out='';
+  for(let p=1;p<=Math.min(pdf.numPages,6);p++){
+    const page=await pdf.getPage(p);const tc=await page.getTextContent();
+    let lastY=null,line='';
+    for(const it of tc.items){const y=Math.round(it.transform[5]);if(lastY!==null&&Math.abs(y-lastY)>3){out+=line+'\n';line=''}line+=(line&&!line.endsWith(' ')?' ':'')+it.str;lastY=y}
+    out+=line+'\n';
+  }
+  return out;
+}
+let resumeDraft=null;
+$('resume').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const st=$('resume-status');st.textContent='Reading…';$('resume-out').hidden=true;
+  try{
+    if(f.size>15*1024*1024)throw new Error('That file is over 15 MB.');
+    let text='';
+    if(f.type==='application/pdf'||/\.pdf$/i.test(f.name))text=await readPdf(f);
+    else text=await f.text();
+    text=text.slice(0,200000);
+    if(text.trim().length<80)throw new Error('No readable text found. If this is a scanned image PDF, export it as text or type your jobs in manually.');
+    resumeDraft=parseResume(text);
+    const rj=$('resume-jobs');rj.innerHTML='';
+    if(!resumeDraft.jobs.length)rj.innerHTML='<p class="note">No dated jobs found. Skills below still work.</p>';
+    resumeDraft.jobs.forEach((j,i)=>{
+      const d=document.createElement('div');d.className='job-row';d.style.gridTemplateColumns='auto 1fr auto';
+      d.innerHTML='<input type="checkbox" checked><div class="field"><input class="rt"><div class="note rs"></div></div><input class="ry" type="number" step="0.5" min="0" style="width:64px">';
+      d.querySelector('.rt').value=j.title;d.querySelector('.ry').value=j.years;d.querySelector('.rs').textContent=j.skills.join(', ')||'no skills recognized under this job';
+      rj.appendChild(d);
+    });
+    $('resume-skills').value=resumeDraft.skills.join(', ');
+    $('resume-out').hidden=false;st.textContent=`Found ${resumeDraft.jobs.length} job${resumeDraft.jobs.length===1?'':'s'} and ${resumeDraft.skills.length} skills.`;
+  }catch(err){st.textContent='Could not read that file. '+(err&&err.message||'');}
+  e.target.value='';
+});
+$('resume-cancel').onclick=()=>{$('resume-out').hidden=true;$('resume-status').textContent='';resumeDraft=null};
+$('resume-apply').onclick=()=>{
+  if(!resumeDraft)return;
+  const rows=[...$('resume-jobs').querySelectorAll('.job-row')];
+  rows.forEach((d,i)=>{if(!d.querySelector('input[type=checkbox]').checked)return;
+    const title=d.querySelector('.rt').value.trim().slice(0,120);if(!title)return;
+    pastJobs.push({title,years:parseFloat(d.querySelector('.ry').value)||0,skills:(resumeDraft.jobs[i]&&resumeDraft.jobs[i].skills)||[]})});
+  const extra=splitList($('extra').value);const add=splitList($('resume-skills').value).filter(s=>!extra.includes(s));
+  if(add.length){$('extra').value=[...extra,...add].join(', ');store.set('js.extra',$('extra').value)}
+  store.set('js.past',pastJobs);renderPast();renderResults();
+  $('resume-out').hidden=true;$('resume-status').textContent='Added to your profile. Edit anything below that looks off.';resumeDraft=null;
+};
+
 // ---------- skill vocabulary (for gap detection) ----------
 const SKILLS=('javascript,typescript,html,css,react,vue,angular,svelte,next.js,node.js,node,express,python,django,flask,fastapi,java,spring,kotlin,swift,c#,.net,c++,go,rust,ruby,rails,php,laravel,wordpress,shopify,webflow,sql,mysql,postgresql,postgres,mongodb,redis,graphql,rest api,aws,azure,gcp,google cloud,docker,kubernetes,terraform,linux,bash,git,github,ci/cd,jenkins,figma,photoshop,illustrator,adobe,ui/ux,ux,seo,google analytics,google ads,facebook ads,hubspot,salesforce,crm,excel,power bi,tableau,data analysis,machine learning,llm,openai,tensorflow,pytorch,pandas,jira,agile,scrum,project management,customer service,sales,cold calling,copywriting,content writing,social media,email marketing,quickbooks,bookkeeping,accounting,payroll,recruiting,zendesk,intercom,wix,squarespace,tailwind,bootstrap,sass,jquery,unity,unreal,firebase,supabase,stripe,twilio,zapier,notion,slack,microsoft office,powerpoint,outlook,ase,automotive,diagnostics,brake,oil change,alignment,tire,forklift,cdl,osha,hvac,electrical,plumbing,welding,cnc,autocad,solidworks,bilingual,spanish,phone support,data entry,typing,cash handling,pos,inventory,scheduling,dispatch').split(',');
-function skillsIn(text){const t=' '+(text||'').toLowerCase().replace(/[^a-z0-9+#./ ]/g,' ')+' ';return SKILLS.filter(s=>t.includes(' '+s+' ')||t.includes(' '+s+',')||t.includes(' '+s+'.')||t.includes('/'+s+' ')||t.includes(' '+s+'/'))}
+function skillsIn(text){const t=(' '+(text||'').toLowerCase().replace(/[^a-z0-9+#./ ]/g,' ')+' ').replace(/(change|inspection|rotation|repair)s\b/g,'$1');return SKILLS.filter(s=>t.includes(' '+s+' ')||t.includes(' '+s+',')||t.includes(' '+s+'.')||t.includes('/'+s+' ')||t.includes(' '+s+'/'))}
 function mySkillSet(){return new Set([...pastJobs.flatMap(j=>j.skills),...splitList($('extra').value)].map(s=>s.toLowerCase()))}
 const ALIAS={postgres:'postgresql',node:'node.js',gcp:'google cloud',ux:'ui/ux'};
 function gapsFor(job,mine){const have=[...mine].join(' ');const out=new Set();skillsIn(job.title+' '+job.description).forEach(s=>{const k=ALIAS[s]||s;if(!mine.has(s)&&!mine.has(k)&&!have.includes(k))out.add(k)});return [...out]}
