@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://remotive.com https://www.arbeitnow.com https://www.themuse.com; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Job Scout</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: profile rail on top (stacks), results as a sortable ledger below. */
+:root{
+  --bg:#f6f4ee; --panel:#ffffff; --fg:#1d1f1a; --muted:#6b6f63; --line:#dcd9cf;
+  --accent:#1f5a3a; --accent-fg:#ffffff; --good:#1f7a3f; --warn:#b26a00; --bad:#a53b2a; --soft:#eef3ec;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#15171a; --panel:#1e2125; --fg:#ebe9e1; --muted:#9a9e92; --line:#33373c;
+  --accent:#6fc192; --accent-fg:#0f1a13; --good:#6fc192; --warn:#e3a94a; --bad:#e8826f; --soft:#22302a; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#15171a; --panel:#1e2125; --fg:#ebe9e1; --muted:#9a9e92; --line:#33373c;
+  --accent:#6fc192; --accent-fg:#0f1a13; --good:#6fc192; --warn:#e3a94a; --bad:#e8826f; --soft:#22302a; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:20px}
+h1{font-size:1.5rem;margin:0;font-weight:600;letter-spacing:-.01em}
+h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600}
+p{margin:0}
+.sub{color:var(--muted);font-size:.9rem}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+.grid{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+@media (max-width:720px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+input,textarea,select{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+textarea{min-height:88px;resize:vertical}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row>*{flex:1 1 140px;min-width:0}
+.field{display:grid;gap:2px}
+button{font:inherit;font-weight:500;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:8px 14px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button.small{padding:4px 10px;font-size:.82rem}
+.jobs-list{display:grid;gap:8px;margin-top:8px}
+.job-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:.9rem}
+.job-row b{font-weight:600}
+.job-row .meta{color:var(--muted);font-size:.82rem;font-family:var(--mono)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.toolbar .left,.toolbar .right{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.status{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.ledger{display:grid;gap:10px}
+.card{display:grid;grid-template-columns:1fr auto;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.card.top{border-left:4px solid var(--accent)}
+.card .title{font-weight:600;font-size:1.02rem}
+.card .title a{color:inherit;text-decoration:none}
+.card .title a:hover{text-decoration:underline}
+.card .co{color:var(--muted);font-size:.9rem}
+.card .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tag{font-family:var(--mono);font-size:.74rem;padding:2px 7px;border-radius:4px;background:var(--soft);color:var(--fg)}
+.tag.src{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.nums{display:grid;gap:8px;text-align:right;min-width:120px}
+.pay{font-family:var(--mono);font-size:1.05rem;font-weight:500;font-variant-numeric:tabular-nums}
+.pay.none{color:var(--muted);font-weight:400;font-size:.85rem}
+.odds{display:grid;gap:3px}
+.odds .pct{font-family:var(--mono);font-size:1.25rem;font-weight:500;font-variant-numeric:tabular-nums}
+.odds .lbl{font-size:.74rem;text-transform:uppercase;letter-spacing:.06em}
+.odds.hi .pct,.odds.hi .lbl{color:var(--good)}
+.odds.mid .pct,.odds.mid .lbl{color:var(--warn)}
+.odds.lo .pct,.odds.lo .lbl{color:var(--bad)}
+.meter{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:2px}
+.meter i{display:block;height:100%;background:currentColor}
+.why{font-size:.82rem;color:var(--muted);margin-top:8px}
+.why span{font-family:var(--mono)}
+details summary{cursor:pointer;color:var(--muted);font-size:.85rem;margin-top:8px}
+.desc{font-size:.88rem;max-height:260px;overflow:auto;margin-top:8px;padding:10px;background:var(--bg);border-radius:6px;white-space:pre-wrap}
+.empty{color:var(--muted);text-align:center;padding:32px 12px}
+.note{font-size:.82rem;color:var(--muted)}
+@media (max-width:560px){.card{grid-template-columns:1fr}.nums{text-align:left;grid-auto-flow:column;justify-content:start;gap:20px}}
+@media (prefers-reduced-motion:no-preference){.meter i{transition:width .4s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Job Scout</h1>
+      <p class="sub">Pulls live listings, then ranks them by pay and by how well they fit the jobs you've already held.</p>
+    </div>
+    <p class="status" id="status">Profile saved in this browser only.</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Your past jobs</h2>
+      <div class="row">
+        <div class="field"><label for="pj-title">Job title</label><input id="pj-title" placeholder="Senior Technician"></div>
+        <div class="field"><label for="pj-years">Years</label><input id="pj-years" type="number" min="0" step="0.5" placeholder="2"></div>
+      </div>
+      <div class="field" style="margin-top:8px"><label for="pj-skills">What you did there (skills, tools, duties, comma-separated)</label>
+        <textarea id="pj-skills" placeholder="oil changes, brake inspection, customer service, ASE entry-level, POS system"></textarea></div>
+      <div class="row" style="margin-top:8px"><button class="primary" id="pj-add">Add job</button></div>
+      <div class="jobs-list" id="pj-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Search</h2>
+      <div class="field"><label for="q">Keywords (what you want to find)</label><input id="q" placeholder="web developer, automotive technician"></div>
+      <div class="row" style="margin-top:8px">
+        <div class="field"><label for="loc">Location filter (blank for any)</label><input id="loc" placeholder="Charleston, SC / remote"></div>
+        <div class="field"><label for="minpay">Minimum pay ($/yr, blank for none)</label><input id="minpay" type="number" min="0" step="1000" placeholder="45000"></div>
+      </div>
+      <div class="field" style="margin-top:8px"><label for="extra">Other skills or certifications you have</label>
+        <input id="extra" placeholder="HTML, CSS, JavaScript, React, Python"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="search">Search live listings</button>
+        <button id="paste-toggle">Paste a listing</button>
+      </div>
+      <div id="paste-box" hidden style="margin-top:10px">
+        <div class="row">
+          <div class="field"><label for="p-title">Title</label><input id="p-title"></div>
+          <div class="field"><label for="p-co">Company</label><input id="p-co"></div>
+          <div class="field"><label for="p-url">Link</label><input id="p-url" placeholder="https://"></div>
+        </div>
+        <div class="field" style="margin-top:8px"><label for="p-desc">Description (paste the whole posting, pay gets read out of it)</label><textarea id="p-desc"></textarea></div>
+        <div class="row" style="margin-top:8px"><button class="primary" id="p-add">Add and score</button></div>
+      </div>
+      <p class="note" style="margin-top:12px">Sources: Remotive, Arbeitnow and The Muse (public job feeds, mostly remote and tech). Local shop and trade jobs usually aren't on these feeds, so paste those in from Indeed and they'll be scored the same way.</p>
+    </section>
+  </div>
+
+  <section>
+    <div class="toolbar">
+      <div class="left">
+        <h2 style="margin:0">Results</h2>
+        <span class="status" id="count"></span>
+      </div>
+      <div class="right">
+        <label for="sort" style="margin:0">Sort by</label>
+        <select id="sort" style="width:auto">
+          <option value="odds">Hire likelihood</option>
+          <option value="pay">Pay (high to low)</option>
+          <option value="combo">Pay × likelihood</option>
+          <option value="date">Newest</option>
+        </select>
+        <button class="small" id="hide-nopay">Hide no-pay listings</button>
+        <button class="small" id="clear">Clear results</button>
+      </div>
+    </div>
+    <p id="banner" hidden style="margin:10px 0;padding:10px 12px;border:1px solid var(--bad);border-radius:6px;color:var(--bad);font-size:.9rem"></p>
+    <div class="ledger" id="ledger"><p class="empty">Add a past job or two, type what you're looking for, and search.</p></div>
+  </section>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+// Anything read back from storage is re-validated; never trust it just because we wrote it.
+let pastJobs=(store.get('js.past',[])||[]).filter(j=>j&&typeof j.title==='string').map(j=>({title:j.title.slice(0,120),years:Number(j.years)||0,skills:Array.isArray(j.skills)?j.skills.map(String).slice(0,60):[]}));
+let results=(store.get('js.results',[])||[]).filter(j=>j&&typeof j.id==='string').map(j=>clean({...j,description:String(j.description||'').slice(0,20000)}));
+let hideNoPay=false;
+['q','loc','minpay','extra'].forEach(id=>{$(id).value=store.get('js.'+id,'');$(id).addEventListener('input',()=>store.set('js.'+id,$(id).value))});
+
+// ---------- past jobs ----------
+function renderPast(){
+  const el=$('pj-list');el.innerHTML='';
+  if(!pastJobs.length){el.innerHTML='<p class="note">No jobs added yet. The scorer treats every listing as a stretch until you add some.</p>';return}
+  pastJobs.forEach((j,i)=>{
+    const d=document.createElement('div');d.className='job-row';
+    d.innerHTML=`<div><b></b> <span class="meta"></span><div class="note"></div></div><button class="small">Remove</button>`;
+    d.querySelector('b').textContent=j.title;
+    d.querySelector('.meta').textContent=j.years?j.years+' yr':'';
+    d.querySelector('.note').textContent=j.skills.join(', ');
+    d.querySelector('button').onclick=()=>{pastJobs.splice(i,1);store.set('js.past',pastJobs);renderPast();renderResults()};
+    el.appendChild(d);
+  });
+}
+$('pj-add').onclick=()=>{
+  const title=$('pj-title').value.trim();if(!title){$('pj-title').focus();return}
+  pastJobs.push({title,years:parseFloat($('pj-years').value)||0,skills:splitList($('pj-skills').value)});
+  store.set('js.past',pastJobs);$('pj-title').value='';$('pj-years').value='';$('pj-skills').value='';
+  renderPast();renderResults();
+};
+function splitList(s){return s.split(/[,\n;]+/).map(x=>x.trim().toLowerCase()).filter(Boolean)}
+
+// ---------- scoring ----------
+const STOP=new Set('the and for with you our are will this that from have your can all any able work team job role job jobs who what when where which their they them been being into than then also more most some such over under per via not but our out use used using about'.split(' '));
+function tokens(s){return (s||'').toLowerCase().replace(/<[^>]+>/g,' ').replace(/[^a-z0-9+#.\s]/g,' ').split(/\s+/).filter(w=>w.length>2&&!STOP.has(w))}
+function parsePay(text){
+  // returns annual USD midpoint or null
+  if(!text)return null;
+  const t=text.replace(/,/g,'');
+  const re=/\$\s?(\d{2,3}(?:\.\d+)?)\s?(k)?(?:\s?(?:-|–|to)\s?\$?\s?(\d{2,3}(?:\.\d+)?)\s?(k)?)?/gi;
+  let m,best=null;
+  while((m=re.exec(t))){
+    let a=parseFloat(m[1]),b=m[3]?parseFloat(m[3]):null;
+    if(m[2]||m[4]){a*=1000;if(b)b*=1000}
+    const after=t.slice(m.index,m.index+60).toLowerCase();
+    const hourly=/hour|hr\b|\/h/.test(after);
+    if(a<300&&!hourly&&!m[2])continue; // bare small numbers that aren't k/hourly
+    if(hourly||a<300){a*=2080;if(b)b*=2080}
+    if(a<15000||a>800000)continue;
+    const mid=b?(a+b)/2:a;
+    if(!best||mid>best)best=mid;
+  }
+  // "120000 - 150000" without $
+  if(!best){const m2=/(\d{2,3})\s?000\s?(?:-|–|to)\s?(\d{2,3})\s?000/.exec(t);if(m2)best=(parseInt(m2[1])+parseInt(m2[2]))/2*1000}
+  return best;
+}
+function yearsRequired(text){
+  const m=/(\d{1,2})\s?\+?\s?(?:years|yrs)/i.exec(text||'');return m?parseInt(m[1]):null;
+}
+function score(job){
+  const title=(job.title||'').toLowerCase(), body=(job.title+' '+job.description).toLowerCase();
+  const bodyTok=new Set(tokens(body));
+  const mySkills=new Set([...pastJobs.flatMap(j=>j.skills),...splitList($('extra').value)]);
+  const myTitles=pastJobs.map(j=>j.title.toLowerCase());
+  const myYears=pastJobs.reduce((a,j)=>a+(j.years||0),0);
+  const why=[];
+  // 1. title overlap (0-35)
+  let titleScore=0;
+  myTitles.forEach(t=>{const tt=tokens(t);const hit=tt.filter(w=>title.includes(w)).length;if(tt.length)titleScore=Math.max(titleScore,hit/tt.length)});
+  titleScore*=35; if(titleScore>0)why.push('title matches a past role');
+  // 2. skill overlap (0-40)
+  let hits=0,total=0;
+  mySkills.forEach(s=>{total++;const words=tokens(s);if(words.length&&words.every(w=>bodyTok.has(w)||body.includes(w)))hits++});
+  const skillScore=total?Math.min(40,(hits/Math.min(total,10))*40+Math.min(hits,6)*2):0;
+  if(hits)why.push(hits+' of your skills named');
+  // 3. seniority / experience (-25..+10)
+  let senior=0;
+  const req=yearsRequired(body);
+  if(req!=null){if(myYears>=req)senior+=10,why.push(`asks ${req}+ yrs, you have ${myYears}`);else{senior-=Math.min(25,(req-myYears)*6);why.push(`asks ${req}+ yrs, you have ${myYears}`)}}
+  if(/\b(senior|sr\.?|lead|principal|staff|director|head of|manager)\b/.test(title)&&myYears<5){senior-=12;why.push('senior-level title')}
+  if(/\b(junior|jr\.?|entry|associate|intern|apprentice|trainee)\b/.test(title)){senior+=8;why.push('entry-level title')}
+  if(/\b(bachelor|b\.s\.|degree required)\b/.test(body)&&!/\bor equivalent\b/.test(body)){senior-=6;why.push('degree listed')}
+  // 4. location fit (0-10)
+  let locScore=5;const want=($('loc').value||'').toLowerCase().trim();const loc=(job.location||'').toLowerCase();
+  if(want){if(loc.includes(want)||(want.includes('remote')&&/remote|anywhere|worldwide/.test(loc)))locScore=10;else if(/remote|anywhere|worldwide|usa|united states/.test(loc))locScore=6;else locScore=0}
+  let pct=Math.round(Math.max(3,Math.min(95,15+titleScore+skillScore+senior+locScore)));
+  if(!pastJobs.length&&!mySkills.size)pct=Math.min(pct,20);
+  return {pct,why};
+}
+
+// ---------- fetching ----------
+async function fetchJSON(url){const r=await fetch(url);if(!r.ok)throw new Error(r.status);return r.json()}
+const sources={
+  async remotive(q){const d=await fetchJSON('https://remotive.com/api/remote-jobs?limit=100&search='+encodeURIComponent(q));
+    return (d.jobs||[]).map(j=>({id:'rm'+j.id,title:j.title,company:j.company_name,location:j.candidate_required_location||'Remote',url:j.url,description:strip(j.description),pay:parsePay(j.salary)||parsePay(j.description),date:j.publication_date,source:'Remotive'}))},
+  async arbeitnow(q){let out=[];for(let p=1;p<=2;p++){const d=await fetchJSON('https://www.arbeitnow.com/api/job-board-api?search='+encodeURIComponent(q)+'&page='+p);out=out.concat(d.data||[]);if(!d.links||!d.links.next)break}
+    return out.map(j=>({id:'ab'+j.slug,title:j.title,company:j.company_name,location:(j.remote?'Remote · ':'')+(j.location||''),url:j.url,description:strip(j.description),pay:parsePay(j.description),date:new Date((j.created_at||0)*1000).toISOString(),source:'Arbeitnow'}))},
+  async muse(q){let out=[];for(let p=0;p<2;p++){const d=await fetchJSON('https://www.themuse.com/api/public/jobs?page='+p+'&descending=true');out=out.concat(d.results||[])}
+    const ql=tokens(q);return out.filter(j=>!ql.length||ql.some(w=>(j.name+' '+(j.categories||[]).map(c=>c.name).join(' ')).toLowerCase().includes(w)))
+      .map(j=>({id:'mu'+j.id,title:j.name,company:j.company&&j.company.name,location:(j.locations||[]).map(l=>l.name).join('; '),url:j.refs&&j.refs.landing_page,description:strip(j.contents),pay:parsePay(j.contents),date:j.publication_date,source:'The Muse'}))}
+};
+// DOMParser builds an inert document: scripts never run and <img onerror> never fires, unlike innerHTML on a div.
+function strip(html){const doc=new DOMParser().parseFromString(String(html||''),'text/html');return (doc.body.textContent||'').replace(/\s+\n/g,'\n').trim().slice(0,20000)}
+// Only plain http(s) links are allowed through; javascript:/data: links from a feed are dropped.
+function safeUrl(u){try{const x=new URL(String(u||''));return (x.protocol==='https:'||x.protocol==='http:')?x.href:''}catch(e){return ''}}
+function clean(j){return {...j,title:String(j.title||'').slice(0,200),company:String(j.company||'').slice(0,120),location:String(j.location||'').slice(0,160),url:safeUrl(j.url),pay:(typeof j.pay==='number'&&isFinite(j.pay))?j.pay:null}}
+$('search').onclick=async()=>{
+  const q=$('q').value.trim();if(!q){$('q').focus();return}
+  setStatus('Searching…');$('search').disabled=true;
+  const got=[],errs=[];
+  await Promise.all(Object.entries(sources).map(async([n,f])=>{try{got.push(...await f(q))}catch(e){errs.push(n)}}));
+  $('search').disabled=false;
+  const seen=new Set(results.map(r=>r.id));
+  got.map(clean).forEach(j=>{if(!seen.has(j.id)){seen.add(j.id);results.push(j)}});
+  store.set('js.results',results);
+  setStatus(`${got.length} fetched${errs.length?' · failed: '+errs.join(', '):''}`);
+  const b=$('banner');
+  if(errs.length===Object.keys(sources).length){b.hidden=false;b.textContent=location.protocol==='file:'
+    ?'The job feeds could not be reached. This file is opened directly from your device, and phone browsers block local files from calling other websites. Put it on a web host (any https link) and search will work, or use "Paste a listing" to score jobs you copy from Indeed.'
+    :'The job feeds could not be reached right now (no network, or the sites are down). Try again in a minute, or paste a listing to score it.'}
+  else b.hidden=true;
+  renderResults();
+};
+function setStatus(s){$('status').textContent=s}
+
+// ---------- paste ----------
+$('paste-toggle').onclick=()=>{$('paste-box').hidden=!$('paste-box').hidden};
+$('p-add').onclick=()=>{
+  const title=$('p-title').value.trim(),desc=$('p-desc').value.trim();if(!title||!desc)return;
+  results.unshift(clean({id:'pa'+Date.now(),title,company:$('p-co').value.trim()||'—',location:$('loc').value||'',url:$('p-url').value.trim(),description:desc.slice(0,20000),pay:parsePay(desc),date:new Date().toISOString(),source:'Pasted'}));
+  ['p-title','p-co','p-url','p-desc'].forEach(i=>$(i).value='');
+  store.set('js.results',results);renderResults();
+};
+
+// ---------- results ----------
+$('sort').onchange=renderResults;
+$('minpay').addEventListener('input',renderResults);$('loc').addEventListener('input',renderResults);$('extra').addEventListener('input',renderResults);
+$('hide-nopay').onclick=e=>{hideNoPay=!hideNoPay;e.target.textContent=hideNoPay?'Show no-pay listings':'Hide no-pay listings';renderResults()};
+$('clear').onclick=()=>{results=[];store.set('js.results',results);renderResults()};
+const fmt=n=>'$'+Math.round(n/1000)+'k';
+function renderResults(){
+  const el=$('ledger');el.innerHTML='';
+  const minpay=parseFloat($('minpay').value)||0;
+  let rows=results.map(j=>({j,s:score(j)}));
+  rows=rows.filter(r=>!(hideNoPay&&!r.j.pay)).filter(r=>!minpay||!r.j.pay||r.j.pay>=minpay);
+  const sort=$('sort').value;
+  rows.sort((a,b)=>{
+    if(sort==='pay')return (b.j.pay||0)-(a.j.pay||0)||b.s.pct-a.s.pct;
+    if(sort==='combo')return ((b.j.pay||30000)*b.s.pct)-((a.j.pay||30000)*a.s.pct);
+    if(sort==='date')return new Date(b.j.date)-new Date(a.j.date);
+    return b.s.pct-a.s.pct||(b.j.pay||0)-(a.j.pay||0);
+  });
+  $('count').textContent=rows.length?rows.length+' listings':'';
+  if(!rows.length){el.innerHTML='<p class="empty">'+(results.length?'Nothing passes the current filters.':'Add a past job or two, type what you’re looking for, and search.')+'</p>';return}
+  rows.forEach((r,i)=>{
+    const j=r.j,s=r.s,band=s.pct>=60?'hi':s.pct>=35?'mid':'lo';
+    const c=document.createElement('article');c.className='card'+(i<3&&sort!=='date'?' top':'');
+    c.innerHTML=`<div>
+      <div class="title">${j.url?'<a target="_blank" rel="noopener noreferrer"></a>':'<span></span>'}</div>
+      <div class="co"></div>
+      <div class="tags"><span class="tag src"></span><span class="tag loc"></span></div>
+      <div class="why"></div>
+      <details><summary>Posting text</summary><div class="desc"></div></details>
+    </div>
+    <div class="nums">
+      <div class="pay ${j.pay?'':'none'}">${j.pay?fmt(j.pay)+'/yr':'pay not listed'}</div>
+      <div class="odds ${band}"><div class="pct">${s.pct}%</div><div class="lbl">hire likelihood</div><div class="meter"><i style="width:${s.pct}%"></i></div></div>
+    </div>`;
+    const t=c.querySelector('.title > *');t.textContent=j.title;if(j.url)t.href=safeUrl(j.url);
+    c.querySelector('.co').textContent=(j.company||'')+(j.date?' · '+new Date(j.date).toLocaleDateString():'');
+    c.querySelector('.src').textContent=j.source;c.querySelector('.loc').textContent=j.location||'location not listed';
+    c.querySelector('.why').textContent=s.why.length?'Why: '+s.why.join(' · '):'Why: nothing in the posting matches your past jobs or skills yet';
+    c.querySelector('.desc').textContent=j.description;
+    el.appendChild(c);
+  });
+}
+renderPast();renderResults();
+})();
+</script>
+</body>
+</html>
